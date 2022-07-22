@@ -1,0 +1,169 @@
+import re
+
+
+class RegexPatterns:
+    """ BASE PATTERNS"""
+    h1_pattern = re.compile(r'title (?P<id>\d+(\.\d+)*)', re.I)
+    h2_chapter_pattern = re.compile(r'^chapter\s(?P<id>\d+([a-zA-Z])*)', re.I)
+    h2_article_pattern = re.compile(r'^article\s(?P<id>\d+([a-zA-Z])*)', re.I)
+    h2_part_pattern = re.compile(r'^part\s(?P<id>\d+([a-zA-Z])*)', re.I)
+    section_pattern_con1 = re.compile(r'^Section (?P<id>\d+)')
+    amend_pattern_con = re.compile(r'^AMENDMENT (?P<id>\d+)', re.I)
+    amp_pattern = re.compile(r'&(?!amp;)')
+    br_pattern = re.compile(r'<br/>')
+    cite_pattern = None
+    code_pattern = None
+    h1_pattern_con = None
+    h2_article_pattern_con = None
+    section_pattern_con = None
+
+
+class CustomisedRegexGa(RegexPatterns):
+    """ Customised regex patterns for GA code"""
+
+    section_pattern = re.compile(r'^(?P<id>\d+-\d+([a-z])?-\d+(\.\d+)?)', re.I)
+    ul_pattern = re.compile(r'^(?P<id>\d+([A-Z])?)', re.I)
+    rule_pattern = re.compile(r'^Rule (?P<id>\d+(-\d+-\.\d+)*(\s\(\d+\))*)\.', re.I)
+
+
+class CustomisedRegexVA(RegexPatterns):
+    """ Customised regex patterns for VA code"""
+
+    h2_subtitle_pattern = re.compile(r'^subtitle\s(?P<id>[IVX]+([a-zA-Z])*)', re.I)
+    h2_part_pattern = re.compile(r'^part\s(?P<id>([A-Z]))', re.I)
+    h2_chapter_pattern = re.compile(r'^chapter\s(?P<id>\d+(\.\d+(:1\.)*?)*)', re.I)
+    h2_article_pattern = re.compile(r'^article\s(?P<id>\d+((\.\d+)*?[a-zA-Z])*)', re.I)
+    section_pattern = re.compile(
+        r'^§+\s(?P<id>\d+(\.\d+)*[A-Z]*-\d+(\.\d+)*(:\d+)*(\.\d+)*(\.\d+)*)\.*\s*', re.I)
+
+    cite_pattern = re.compile(
+        r'(?P<cite>(?P<title>\d+(\.\d+)*)-\d+(\.\d+)*(\.\s:\d+)*(?P<ol>(\([a-z]\))(\(\d+\))*)*)')
+    code_pattern = re.compile(r'(\d+\sVa.\s\d+|S\.E\. \d+|Va\. App\. LEXIS \d+|Titles (\d+(\.\d+)*))')
+
+
+class CustomisedRegexAK(RegexPatterns):
+    """ Customised regex patterns for AK code"""
+
+    section_pattern = re.compile(r'^Sec\.\s*?(?P<id>\d+\.\d+\.\d+)\.')
+    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)\.\d+\.\d+)(?P<ol>(\([a-z]\))(\(\d+\))*)*)')
+    code_pattern = re.compile(r'\d+ AAC \d+, art\. \d+\.|State v\. Yi, \d+ P\.\d+d \d+')
+
+    h1_pattern_con = re.compile(r'The Constitution of the State')
+    h2_article_pattern_con = re.compile(r'^Article (?P<id>[IVX]+)', re.I)
+    section_pattern_con = re.compile(r'Section (?P<id>\d+)\.')
+
+
+class CustomisedRegexCO(RegexPatterns):
+    """ Customised regex patterns for CO code"""
+
+    h2_article_pattern = re.compile(r'^(article|Art\.)\s(?P<id>\d+(\.\d+)*)', re.I)
+    section_pattern = re.compile(r'^(?P<id>\d+(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*?)', re.I)
+
+    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*)(\s?(?P<ol>\(\w+\))+)?)')
+    code_pattern = re.compile(r"Colo\.\s*\d+|Colo\.\s*Law\.\s*\d+|"
+                              r"\d+\s*Denv\.\s*L\.\s*Rev\.\s*\d+|"
+                              r"\d{4}\s*COA\s*\d+|"
+                              r"L\.\s*\d+,\s*p\.\s*\d+|"
+                              r"Colo\.+P\.\d\w\s\d+")
+
+    h1_pattern_con = re.compile(r'^Declaration of Independence|'
+                                r'^Constitution of the United States of America of 1787|'
+                                r'^Constitution of the State of Colorado')
+    h2_article_pattern_con = re.compile(r'^ARTICLE (?P<id>[IVX]+)', re.I)
+    section_pattern_con = re.compile(r'^§ (?P<id>\d+)\.')
+
+
+class CustomisedRegexVT(RegexPatterns):
+    """ Customised regex patterns for VT code"""
+
+    h2_article_pattern = re.compile(r'^subchapter\s(?P<id>\d+([a-zA-Z])*)', re.I)
+    section_pattern = re.compile(
+        r'^§*\s*(?P<id>\d+([a-z]{0,2})*([A-Z])*(\.\d+)*(\.*?\s*?-\d+([a-z])*)*(\.\d+)*)\.*\s*')
+    h2_subchapter_pattern = re.compile(r'^Subchapter\s(?P<id>[IVX]+[A-Z]?)\.', re.I)
+
+
+class CustomisedRegexAR(RegexPatterns):
+    """ Customised regex patterns for AR code"""
+
+    section_pattern = re.compile(r'^(?P<id>\d+-\d+([a-z])?-\d+(\.\d+)?)')
+    h2_subtitle_pattern = re.compile(r'^Subtitle (?P<id>\d+)\.')
+    h2_chapters_pattern = re.compile(r'^Chapters (?P<id>\d+-\d+)')
+    h2_subchapter_pattern = re.compile(r'^Subchapter (?P<id>\d+)')
+
+    h1_pattern_con = re.compile(r'^Constitution\s+Of\s+The', re.I)
+    h2_article_pattern_con = re.compile(r'^ARTICLE (?P<id>\d+)', re.I)
+    section_pattern_con = re.compile(r'^§ (?P<id>\d+)\.')
+    amend_pattern_con = re.compile(r'^AMENDMENT (?P<id>\d+)', re.I)
+
+    cite_pattern = re.compile(r'\b((?P<cite>(?P<title>\d{1,2})-(?P<chap>\d(\w+)?)-(?P<sec>\d+(\.\d+)?))(\s?(\(('
+                              r'?P<ol>\w+)\))+)?)')
+    code_pattern = re.compile(r"\d+ Ga\.( App\.)? \d+"
+                              r"|\d+ S\.E\.(2d)? \d+"
+                              r"|\d+ U\.S\.C\. § \d+(\(\w\))?"
+                              r"|\d+ S\. (Ct\.) \d+"
+                              r"|\d+ L\. (Ed\.) \d+"
+                              r"|\d+ L\.R\.(A\.)? \d+"
+                              r"|\d+ Am\. St\.( R\.)? \d+"
+                              r"|\d+ A\.L\.(R\.)? \d+")
+
+
+class CustomisedRegexND(RegexPatterns):
+    """ Customised regex patterns for ND code"""
+
+    h2_part_pattern = re.compile(r'^Part\s(?P<id>([IVX]+)*(\d+([a-zA-Z])*)*)')
+    h2_chapter_pattern = re.compile(r'^CHAPTER\s(?P<id>\d+(\.\d+)*-\d+(\.\d+)*([A-Z])*)', re.I)
+    section_pattern = re.compile(r'^(?P<id>\d+(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*)')
+    h2_article_pattern = re.compile(r'^article\s(?P<id>(\d+([a-zA-Z])*)|[IVX]+)', re.I)
+
+    cite_pattern = re.compile(
+        r'((?P<cite>(?P<title>\d+(\.\d+)*)-\d+(\.\d+)*-\d+(\.\d+)*)(?P<ol>(\([a-z]\))(\(\d+\))*)*)')
+    code_pattern = re.compile(r'N\.D\. LEXIS \d+')
+
+
+class CustomisedRegexID(RegexPatterns):
+    """ Customised regex patterns for ID code"""
+
+    h2_article_pattern = re.compile(r'^(article)\s(?P<id>\d+([a-zA-Z])*)', re.I)
+    section_pattern = re.compile(r'^§?(\s?)(?P<id>\d+-\d+[a-zA-Z]?(-\d+)?)\.?', re.I)
+    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)\.\d+\.\d+)(?P<ol>(\([a-z]\))(\(\d+\))*)*)')
+    code_pattern = re.compile(r'N\.D\. LEXIS \d+')
+
+
+class CustomisedRegexWY(RegexPatterns):
+    """ Customised regex patterns for WY code"""
+
+    section_pattern = re.compile(r'^§*\s*(?P<id>\d+(\.\d+)*-\d+(\.[A-Z]+)*-\d+(\.\d+)*)', re.I)
+    h2_division_pattern = re.compile(r'^Division (?P<id>\d+)\.')
+    h2_article_pattern = re.compile(r'^article\s(?P<id>\d+(\.*[a-zA-Z])*)', re.I)
+
+    cite_pattern = re.compile(r'(§*\s*(?P<cite>(?P<title>\d+)-\d+-\d+)(?P<ol>(\([a-z]\))(\(\d+\))*)*)')
+    code_pattern = re.compile(r'\d+ Wyo\. LEXIS \d+')
+
+    h1_pattern_con = re.compile(r'^THE CONSTITUTION OF THE UNITED STATES OF AMERICA|'
+                                r'^Constitution of the State of Wyoming')
+    h2_article_pattern_con = re.compile(r'^ARTICLE (?P<id>\d+)', re.I)
+    section_pattern_con = re.compile(r'^(Section|§) (?P<id>\d+)')
+    section_pattern_con1 = re.compile(r'^Section (?P<id>\d+)')
+
+
+class CustomisedRegexTN(RegexPatterns):
+    """ Customised regex patterns for TN code"""
+
+    section_pattern = re.compile(r'^(?P<id>\d+-\d+([a-z])?-\d+(\.\d+)?)', re.I)
+    cite_pattern = re.compile(r'\b(?P<cite>(?P<title>\d{1,2})-\d(\w+)?-\d+(\.\d+)?)(\s*(?P<ol>(\(\w+\))+))?')
+    code_pattern = re.compile(r'(\d+ (Ga\.) \d+)|(\d+ Ga\.( App\.) \d+)'
+                              r'(\d+ S\.E\.(2d)? \d+)|(\d+ U\.S\.(C\. §)? \d+(\(\w\))?)'
+                              r'(\d+ S\. (Ct\.) \d+)|(\d+ L\. (Ed\.) \d+)|'
+                              r'(\d+ L\.R\.(A\.)? \d+)|(\d+ Am\. St\.( R\.)? \d+)'
+                              r'(\d+ A\.L\.R\.(2d)? \d+)')
+
+
+class CustomisedRegexKY(RegexPatterns):
+    h1_pattern = re.compile(r'title (?P<id>[IVXL]+)', re.I)
+    section_pattern = re.compile(r'^(?P<id>\d+([A-Z]*?)\.\d+(-\d+)*?)\.', re.I)
+
+    cite_pattern = re.compile(r'KRS\s?(?P<cite>(?P<title>\d+[a-zA-Z]*)\.\d+(\(\d+\))*(-\d+)*)(\s*(?P<ol>(\(\w+\))+))?')
+    code_pattern = re.compile(r'((Ky\.\s*(L\. Rptr\.\s*)*\d+)|'
+                              r'(Ky\.\s?(App\.)?\s?LEXIS\s?\d+)|'
+                              r'(U\.S\.C\.\s*secs*\.\s*\d+(\([a-zA-Z]\))*(\(\d+\))*)|'
+                              r'(OAG \d+-\d+))')
