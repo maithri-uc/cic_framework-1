@@ -1,11 +1,9 @@
 import importlib
-import logging
-import os
 import re
-import traceback
 from datetime import datetime
 from bs4 import BeautifulSoup, Doctype
 from regex_pattern import RegexPatterns
+from loguru import logger
 
 
 class ParseHtml:
@@ -13,6 +11,7 @@ class ParseHtml:
     def __init__(self, state_key, path, release_number, input_file_name):
 
         """Meta Data"""
+        self.id_list = []
         self.file_name = None
         self.tag = None
         self.state_key = state_key
@@ -50,6 +49,9 @@ class ParseHtml:
         self.list_id_count = 1
         self.h3_count = 1
 
+        self.meta_data = {"file_name": self.input_file_name, "state_key": self.state_key,
+                          "release_number": self.release_number}
+
         self.junk_tag_class = ['Apple-converted-space', 'Apple-tab-span']
         self.regex_pattern_obj = RegexPatterns()
 
@@ -77,7 +79,7 @@ class ParseHtml:
         self.soup = BeautifulSoup(html_data, features="lxml")
         self.soup.contents[0].replace_with(Doctype("html"))
         self.soup.html.attrs['lang'] = 'en'
-        print('created soup')
+        logger.info(f"soup is created for {self.meta_data}")
 
     def generate_class_name_dict(self):
         """
@@ -92,8 +94,7 @@ class ParseHtml:
             if tag_class:
                 self.tag_type_dict[key] = tag_class.get('class')[0]
 
-        print(self.tag_type_dict)
-        print('updated class dict')
+        logger.info(f"updated class dict is {self.tag_type_dict}")
 
     def replace_h1_tags_titles(self, header_tag):
         """
@@ -264,7 +265,15 @@ class ParseHtml:
             elif header_tag.name == "p":
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
 
-        print("tags are replaced")
+        logger.info("Tags are replaced in the base class")
+
+    def storing_header_ids(self):
+        with open("header_ids.txt", "a") as file:
+            for tag in self.soup.find_all('h3'):
+                if tag.get("id"):
+                    key = re.search(r's(?P<sec_id>.+)', tag.get("id").strip()).group("sec_id")
+                    value = tag.get("id")
+                    file.write('%s %s\n' % (key, value))
 
     def set_chapter_section_id(self, list_item, chap_num, sub_tag, prev_id, cnav):
         """
@@ -359,6 +368,8 @@ class ParseHtml:
                 self.c_nav_count = 0
                 self.p_nav_count = 0
                 self.s_nav_count = 0
+
+        logger.info("anchor tags are added in base class")
 
     def convert_paragraph_to_alphabetical_ol_tags(self):
         """ this method is defined in the child class"""
@@ -645,7 +656,7 @@ class ParseHtml:
                 a_tag_id = f'{rom_tag.get("id")}-{alpha}'
 
             elif re.search(r'^\d+\.', case_tag.text.strip().strip()):
-                digit_tag = case_tag
+
                 if re.search(r'^1\.', case_tag.text.strip().strip()):
                     digit_ul = self.soup.new_tag("ul", **{"class": "leaders"})
                     case_tag.wrap(digit_ul)
@@ -878,75 +889,53 @@ class ParseHtml:
                     if not sec_header:
                         print()
 
-        print('wrapped div tags')
+        logger.info("wrapped inside div tags")
 
-    def add_cite(self):
-        text = str(self.tag)
-        for match in set(x[0] for x in getattr(self.parser_obj, "cite_pattern").findall(self.tag.text.strip())):
-            inside_text = re.sub(r'<p\sclass="\w\d+">|</p>', '', text, re.DOTALL)
-            id_reg = getattr(self.parser_obj, "cite_pattern").search(match.strip())
-
-            title_id = id_reg.group("title").strip().zfill(2)
-
-            if os.path.isfile(
-                    f"/home/mis/PycharmProjects/cic_code_framework/transforms_output/{self.state_key.lower()}/oc{self.state_key.lower()}/r{self.release_number}/{self.file_name}{title_id}.html"):
-                with open(
-                        f"/home/mis/PycharmProjects/cic_code_framework/transforms_output/{self.state_key.lower()}/oc{self.state_key.lower()}/r{self.release_number}/{self.file_name}{title_id}.html",
-                        'r') as firstfile:
-
-                    for line in firstfile:
-
-                        if id_reg.group("ol"):
-                            ol_id = re.sub(r'[() ]+', '', id_reg.group("ol"))
-                            cite_id = f'{id_reg.group("cite")}ol1{ol_id}'
-
-                            if re.search(rf'id=".+{cite_id}">$', line.strip()):
-                                li_id = re.search(rf'id="(?P<l_id>.+{cite_id})">$',
-                                                  line.strip()).group("l_id")
-
-                                if title_id == self.title.zfill(2):
-                                    target = "_self"
-                                    a_id = f'#{li_id}'
-                                else:
-                                    target = "_blank"
-                                    a_id = f'{self.file_name}{title_id}.html#{li_id}'
-
-                                self.tag.clear()
-                                text = re.sub(fr'\s{re.escape(match)}',
-                                              f' <cite class="ocak"><a href="{a_id}" target="{target}">{match}</a></cite>',
-                                              inside_text,
-                                              re.I)
-                                self.tag.append(text)
-
-                        else:
-                            if re.search(rf'id=".+[sc]{id_reg.group("cite")}">$', line.strip()):
-                                self.tag.clear()
-                                head_id = re.search(rf'id="(?P<h_id>.+[sc]{id_reg.group("cite")})">$', line.strip())
-
-                                if title_id == self.title.zfill(2):
-                                    target = "_self"
-                                    a_id = f'#{head_id.group("h_id")}'
-                                else:
-                                    target = "_blank"
-                                    a_id = f'{self.file_name}{title_id}.html#{head_id.group("h_id")}'
-
-                                self.tag.clear()
-                                text = re.sub(fr'\s{re.escape(match)}',
-                                                  f' <cite class="ocak"><a href="{a_id}" target="{target}">{match}</a></cite>',
-                                                  inside_text, re.I)
-                                self.tag.append(text)
-
-        for match in set(
-                x[0] for x in re.findall(getattr(self.parser_obj, "code_pattern"), self.tag.get_text())):
-            inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<p\sclass="\w\d+"\sid=".+">', '', text, re.DOTALL)
-            self.tag.clear()
-            class_name = f"{self.state_key.lower()}_code"
-            text = re.sub(re.escape(match), f'<cite class="{class_name}">{match}</cite>', inside_text, re.I)
-            self.tag.append(text)
+    # def add_cite(self):
+    #     text = str(self.tag)
+    #     self.id_list: list = []
+    #     with open("header_ids.txt", 'r') as file:
+    #         for line in file:
+    #             x = line[:-1]
+    #             self.id_list.append(x)
+    #
+    #     for match in set(x[0] for x in getattr(self.parser_obj, "cite_pattern").findall(self.tag.text.strip())):
+    #         inside_text = re.sub(r'<p\sclass="\w\d+">|</p>', '', text, re.DOTALL)
+    #         id_reg = getattr(self.parser_obj, "cite_pattern").search(match.strip())
+    #         title_id = id_reg.group("title").strip().zfill(2)
+    #
+    #         for cite_id in self.id_list:
+    #             if re.search(rf'{id_reg.group("cite")}$', cite_id):
+    #                 self.tag.clear()
+    #                 if title_id == self.title.zfill(2):
+    #                     target = "_self"
+    #                     a_id = f'#{cite_id}'
+    #                 else:
+    #                     target = "_blank"
+    #                     a_id = f'{self.file_name}{title_id}.html#{cite_id}'
+    #
+    #                 if id_reg.group("ol"):
+    #                     ol_id = re.sub(r'[() ]+', '', id_reg.group("ol"))
+    #                     a_id = f'#{cite_id}ol1{ol_id}'
+    #
+    #                 self.tag.clear()
+    #                 text = re.sub(fr'\s{re.escape(match)}',
+    #                               f' <cite class="ocak"><a href="{a_id}" target="{target}">{match}</a></cite>',
+    #                               inside_text, re.I)
+    #                 self.tag.append(text)
+    #
+    #     for match in set(
+    #             x[0] for x in re.findall(getattr(self.parser_obj, "code_pattern"), self.tag.get_text())):
+    #         inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<p\sclass="\w\d+"\sid=".+">', '', text, re.DOTALL)
+    #         self.tag.clear()
+    #         class_name = f"{self.state_key.lower()}_code"
+    #         text = re.sub(re.escape(match), f'<cite class="{class_name}">{match}</cite>', inside_text, re.I)
+    #         self.tag.append(text)
 
     def wrap_inside_main_tag(self):
 
         """wrap inside main tag"""
+
         main_tag = self.soup.new_tag('main')
         chap_nav = self.soup.find('nav')
         ul = self.soup.find("ul")
@@ -962,6 +951,8 @@ class ParseHtml:
                 chap_nav.insert_after(main_tag)
                 break
             tag_to_wrap = next_tag
+
+        logger.info("wrapped inside main tag")
 
     def post_process(self):
         """
@@ -1020,9 +1011,6 @@ class ParseHtml:
             if tag.name == "ul" and tag.li and re.search(r'p\d+', str(tag.li.get("class"))):
                 tag.wrap(self.soup.new_tag("nav"))
 
-            if len(tag.get_text(strip=True)) == 0:
-                tag.extract()
-
         for tag in self.soup.find_all("p", class_="p2"):
             if tag.br:
                 if len(tag.text) > 0:
@@ -1035,7 +1023,13 @@ class ParseHtml:
         for tag in self.soup.find_all(class_="navhead"):
             del tag["id"]
 
-        print("processed")
+        for tag in self.soup.find_all("p", string=re.compile(r'Idaho Code Title 1|'
+                                                             r'Idaho Code Ch\. 1|'
+                                                             r'Idaho Code §')):
+            tag.decompose()
+
+        logger.info("clean HTML is processed")
+        return self.soup
 
     def write_soup_to_file(self):
         """
@@ -1059,7 +1053,7 @@ class ParseHtml:
             soup_str = re.sub(r'<span class.*?>\s*</span>', '', soup_str)
             file.write(soup_str)
 
-        print("file parsed")
+        logger.info(f"parsing {self.input_file_name} is completed")
 
     def replace_tags_constitution(self):
 
@@ -1083,7 +1077,8 @@ class ParseHtml:
                     chap_no = self.regex_pattern_obj.h2_article_pattern_con.search(header_tag.text.strip()).group('id')
                     header_tag_id = f'{header_tag.find_previous("h1").get("id")}-ar{chap_no.zfill(2)}'
                     if header_tag_id in h2_id_list:
-                        header_tag["id"] = f'{header_tag.find_previous("h1").get("id")}-ar{chap_no.zfill(2)}.{h2_count:02}'
+                        header_tag[
+                            "id"] = f'{header_tag.find_previous("h1").get("id")}-ar{chap_no.zfill(2)}.{h2_count:02}'
                         h2_count += 1
                     else:
                         header_tag["id"] = f'{header_tag.find_previous("h1").get("id")}-ar{chap_no.zfill(2)}'
@@ -1127,7 +1122,8 @@ class ParseHtml:
                         header_tag[
                             "id"] = f'{header_tag.find_previous("h3").get("id")}-s{chap_no.zfill(2)}'
                     else:
-                        header_tag["id"] = f'{header_tag.find_previous("h2", class_="oneh2").get("id")}-s{chap_no.zfill(2)}'
+                        header_tag[
+                            "id"] = f'{header_tag.find_previous("h2", class_="oneh2").get("id")}-s{chap_no.zfill(2)}'
 
                     header_tag["class"] = "section"
                     self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
@@ -1154,9 +1150,9 @@ class ParseHtml:
                     chap_num = self.regex_pattern_obj.h2_article_pattern_con.search(li_tag.text.strip()).group("id")
                     self.c_nav_count += 1
                     self.set_chapter_section_id(li_tag, chap_num,
-                                                        sub_tag="-ar",
-                                                        prev_id=li_tag.find_previous("h1").get("id"),
-                                                        cnav=f'cnav{self.c_nav_count:02}')
+                                                sub_tag="-ar",
+                                                prev_id=li_tag.find_previous("h1").get("id"),
+                                                cnav=f'cnav{self.c_nav_count:02}')
 
                 elif self.regex_pattern_obj.section_pattern_con.search(li_tag.text.strip()):
                     chap_num = self.regex_pattern_obj.section_pattern_con.search(li_tag.text.strip()).group("id")
@@ -1164,7 +1160,7 @@ class ParseHtml:
                     if self.regex_pattern_obj.section_pattern_con1.search(li_tag.text.strip()):
                         self.set_chapter_section_id(li_tag, chap_num,
                                                     sub_tag="-s",
-                                                    prev_id=li_tag.find_previous({"h3","h2", "h1"}).get("id"),
+                                                    prev_id=li_tag.find_previous({"h3", "h2", "h1"}).get("id"),
                                                     cnav=f'cnav{self.c_nav_count:02}')
                     elif li_tag.find_previous("h3") and \
                             self.regex_pattern_obj.amend_pattern_con.search(
@@ -1179,7 +1175,7 @@ class ParseHtml:
                                                     prev_id=li_tag.find_previous({"h2", "h1"}).get("id"),
                                                     cnav=f'cnav{self.c_nav_count:02}')
 
-                elif re.search(r'^PREAMBLE|^AMENDMENTS|^Schedule', li_tag.text.strip(),re.I):
+                elif re.search(r'^PREAMBLE|^AMENDMENTS|^Schedule', li_tag.text.strip(), re.I):
                     chap_num = re.sub(r'[\W\s]+', '', li_tag.text.strip()).lower()
                     self.c_nav_count += 1
                     self.set_chapter_section_id(li_tag, chap_num,
@@ -1210,7 +1206,6 @@ class ParseHtml:
         self.add_anchor_tags_con()
         self.convert_paragraph_to_alphabetical_ol_tags()
         self.wrap_div_tags()
-        self.add_cite()
         self.post_process()
         self.write_soup_to_file()
 
@@ -1218,35 +1213,29 @@ class ParseHtml:
 
         """calling methods to parse the passed title htmls"""
 
-        print(self.input_file_name)
-        start_time = datetime.now()
-        print(start_time)
         self.set_page_soup()
         self.set_release_date()
         self.pre_process()
         self.generate_class_name_dict()
         self.replace_tags_titles()
+        self.storing_header_ids()
         self.wrap_inside_main_tag()
         self.add_anchor_tags()
         self.convert_paragraph_to_alphabetical_ol_tags()
         self.create_analysis_nav_tag()
         self.wrap_div_tags()
-        self.add_cite()
         self.post_process()
         self.write_soup_to_file()
 
-        print(f'finished {self.input_file_name}')
-        print(datetime.now() - start_time)
-
     def run(self):
-        try:
-            if re.search('constitution', self.input_file_name):
-                self.run_constitution()
-            else:
-                self.run_titles()
+        logger.info(self.meta_data)
+        start_time = datetime.now()
+        logger.info(start_time)
 
-        except Exception as exc:
-            exception_on = f'{exc}\n--------------------->' \
-                           f'{self.input_file_name}'
-            logging.exception(exception_on, traceback.format_exc())
+        if re.search('constitution', self.input_file_name):
+            self.run_constitution()
+        else:
+            self.run_titles()
 
+        logger.info(datetime.now() - start_time)
+        return str(self.soup.prettify(formatter=None))

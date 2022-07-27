@@ -1,6 +1,7 @@
 import re
 from base_html_parser import ParseHtml
 from regex_pattern import CustomisedRegexND
+from loguru import logger
 
 
 class NDParseHtml(ParseHtml):
@@ -123,6 +124,8 @@ class NDParseHtml(ParseHtml):
                             h5count = 1
 
                         note_to_decision_id.append(p_tag_id)
+
+        logger.info("Tags are replaced in the child class")
 
     def convert_paragraph_to_alphabetical_ol_tags(self):
         """
@@ -312,23 +315,10 @@ class NDParseHtml(ParseHtml):
                 inr_sec_alpha_cur_tag = None
                 num_cur_tag = None
                 inr_num_cur_tag = None
-                ol_head_cur_tag = None
 
-        print('ol tags added')
+        logger.info("ol tags are created in child class")
 
     def create_analysis_nav_tag(self):
         super(NDParseHtml, self).create_Notes_to_decision_analysis_nav_tag()
-        print("Note to decision nav created")
+        logger.info("Note to decision nav is created in child class")
 
-    def add_cite(self):
-        self.file_name = 'gov.nd.code.title.'
-        cite_p_tags = []
-        for self.tag in self.soup.findAll(
-                lambda tag: re.search(r"\d+(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*\."
-                                      r"|Chapter\s(?P<chapid>\d+(\.\d+)*-\d+(\.\d+)*([A-Z])*)"
-                                      r"|N\.D\. LEXIS \d+",
-                                      tag.get_text()) and tag.name == 'p'
-                            and tag not in cite_p_tags):
-            cite_p_tags.append(self.tag)
-            super(NDParseHtml, self).add_cite()
-        print("cite is created")

@@ -869,20 +869,6 @@ class COParseHtml(ParseHtml):
         super(COParseHtml, self).create_annotation_analysis_nav_tag()
         print("Annotation analysis nav created")
 
-    def add_cite(self):
-        self.file_name = 'gov.co.crs.title.'
-        cite_p_tags = []
-        for self.tag in self.soup.findAll(lambda tag: re.search(r"\d+(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*"
-                                                           r"Colo\.\s*\d+|Colo\.\s*Law\.\s*\d+|"
-                                                           r"\d+\s*Denv\.\s*L\.\s*Rev\.\s*\d+|"
-                                                           r"\d{4}\s*COA\s*\d+|"
-                                                           r"L\.\s*\d+,\s*p\.\s*\d+|"
-                                                           r"Colo.+P\.\d\w\s\d+",
-                                                           tag.get_text()) and tag.name == 'p'
-                                                 and tag not in cite_p_tags):
-            cite_p_tags.append(self.tag)
-            super(COParseHtml, self).add_cite()
-
     def wrap_inside_main_tag(self):
 
         """wrap inside main tag"""
