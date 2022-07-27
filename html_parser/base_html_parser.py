@@ -891,47 +891,6 @@ class ParseHtml:
 
         logger.info("wrapped inside div tags")
 
-    # def add_cite(self):
-    #     text = str(self.tag)
-    #     self.id_list: list = []
-    #     with open("header_ids.txt", 'r') as file:
-    #         for line in file:
-    #             x = line[:-1]
-    #             self.id_list.append(x)
-    #
-    #     for match in set(x[0] for x in getattr(self.parser_obj, "cite_pattern").findall(self.tag.text.strip())):
-    #         inside_text = re.sub(r'<p\sclass="\w\d+">|</p>', '', text, re.DOTALL)
-    #         id_reg = getattr(self.parser_obj, "cite_pattern").search(match.strip())
-    #         title_id = id_reg.group("title").strip().zfill(2)
-    #
-    #         for cite_id in self.id_list:
-    #             if re.search(rf'{id_reg.group("cite")}$', cite_id):
-    #                 self.tag.clear()
-    #                 if title_id == self.title.zfill(2):
-    #                     target = "_self"
-    #                     a_id = f'#{cite_id}'
-    #                 else:
-    #                     target = "_blank"
-    #                     a_id = f'{self.file_name}{title_id}.html#{cite_id}'
-    #
-    #                 if id_reg.group("ol"):
-    #                     ol_id = re.sub(r'[() ]+', '', id_reg.group("ol"))
-    #                     a_id = f'#{cite_id}ol1{ol_id}'
-    #
-    #                 self.tag.clear()
-    #                 text = re.sub(fr'\s{re.escape(match)}',
-    #                               f' <cite class="ocak"><a href="{a_id}" target="{target}">{match}</a></cite>',
-    #                               inside_text, re.I)
-    #                 self.tag.append(text)
-    #
-    #     for match in set(
-    #             x[0] for x in re.findall(getattr(self.parser_obj, "code_pattern"), self.tag.get_text())):
-    #         inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<p\sclass="\w\d+"\sid=".+">', '', text, re.DOTALL)
-    #         self.tag.clear()
-    #         class_name = f"{self.state_key.lower()}_code"
-    #         text = re.sub(re.escape(match), f'<cite class="{class_name}">{match}</cite>', inside_text, re.I)
-    #         self.tag.append(text)
-
     def wrap_inside_main_tag(self):
 
         """wrap inside main tag"""
