@@ -58,8 +58,9 @@ class CustomisedRegexCO(RegexPatterns):
 
     h2_article_pattern = re.compile(r'^(article|Art\.)\s(?P<id>\d+(\.\d+)*)', re.I)
     section_pattern = re.compile(r'^(?P<id>\d+(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*?)', re.I)
+    h2_subpart_pattern = re.compile(r'^subpart\s(?P<id>\d+([a-zA-Z])*)', re.I)
 
-    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*)(\s?(?P<ol>\(\w+\))+)?)')
+    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*)\s?(?P<ol>(\(\w\))(\(\w\))?(\(\w\))?)*)')
     code_pattern = re.compile(r"Colo\.\s*\d+|Colo\.\s*Law\.\s*\d+|"
                               r"\d+\s*Denv\.\s*L\.\s*Rev\.\s*\d+|"
                               r"\d{4}\s*COA\s*\d+|"
@@ -97,14 +98,14 @@ class CustomisedRegexAR(RegexPatterns):
 
     cite_pattern = re.compile(r'\b((?P<cite>(?P<title>\d{1,2})-(?P<chap>\d(\w+)?)-(?P<sec>\d+(\.\d+)?))(\s?(\(('
                               r'?P<ol>\w+)\))+)?)')
-    code_pattern = re.compile(r"\d+ Ga\.( App\.)? \d+"
+    code_pattern = re.compile(r"(\d+ Ga\.( App\.)? \d+"
                               r"|\d+ S\.E\.(2d)? \d+"
                               r"|\d+ U\.S\.C\. § \d+(\(\w\))?"
                               r"|\d+ S\. (Ct\.) \d+"
                               r"|\d+ L\. (Ed\.) \d+"
                               r"|\d+ L\.R\.(A\.)? \d+"
                               r"|\d+ Am\. St\.( R\.)? \d+"
-                              r"|\d+ A\.L\.(R\.)? \d+")
+                              r"|\d+ A\.L\.(R\.)? \d+)")
 
 
 class CustomisedRegexND(RegexPatterns):
@@ -116,8 +117,12 @@ class CustomisedRegexND(RegexPatterns):
     h2_article_pattern = re.compile(r'^article\s(?P<id>(\d+([a-zA-Z])*)|[IVX]+)', re.I)
 
     cite_pattern = re.compile(
-        r'((?P<cite>(?P<title>\d+(\.\d+)*)-\d+(\.\d+)*-\d+(\.\d+)*)(?P<ol>(\([a-z]\))(\(\d+\))*)*)')
+        r'((?P<cite>(?P<title>\d+(\.\d+)*)-\d+(\.\d+)*-\d+(\.\d+)*)(?P<ol>(\(\w\))(\(\w\))?(\(\w\))?)*)')
     code_pattern = re.compile(r'N\.D\. LEXIS \d+')
+
+    cite_tag_pattern = re.compile(r"\d+(\.\d+)*-\d+(\.\d+)*-\d+(\.\d+)*"
+                                      r"|Chapter\s(?P<chapid>\d+(\.\d+)*-\d+(\.\d+)*([A-Z])*)"
+                                      r"|N\.D\. LEXIS \d+")
 
 
 class CustomisedRegexID(RegexPatterns):
@@ -162,8 +167,10 @@ class CustomisedRegexKY(RegexPatterns):
     h1_pattern = re.compile(r'title (?P<id>[IVXL]+)', re.I)
     section_pattern = re.compile(r'^(?P<id>\d+([A-Z]*?)\.\d+(-\d+)*?)\.', re.I)
 
-    cite_pattern = re.compile(r'KRS\s?(?P<cite>(?P<title>\d+[a-zA-Z]*)\.\d+(\(\d+\))*(-\d+)*)(\s*(?P<ol>(\(\w+\))+))?')
+    cite_pattern = re.compile(r'(?P<cite>(?P<title>\d+[a-zA-Z]*)\.\d+(\(\d+\))*(-\d+)*)(\s*(?P<ol>(\(\w+\))+))?')
     code_pattern = re.compile(r'((Ky\.\s*(L\. Rptr\.\s*)*\d+)|'
                               r'(Ky\.\s?(App\.)?\s?LEXIS\s?\d+)|'
                               r'(U\.S\.C\.\s*secs*\.\s*\d+(\([a-zA-Z]\))*(\(\d+\))*)|'
                               r'(OAG \d+-\d+))')
+
+
