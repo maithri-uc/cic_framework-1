@@ -778,60 +778,6 @@ class COParseHtml(ParseHtml):
                     p_tag.append(num_ol)
                     ol_head = 2
 
-            # elif re.search(rf'^{num_count}\.', current_tag_text) and p_tag.name != "li" :
-            #     previous_li_tag = p_tag
-            #     p_tag.name = "li"
-            #     num_tag = p_tag
-            #
-            #     if re.search(r'^1\.', current_tag_text):
-            #         num_ol1 = self.soup.new_tag("ol")
-            #         p_tag.wrap(num_ol1)
-            #
-            #         if sec_alpha_cur_tag:
-            #             sec_alpha_cur_tag.append(num_ol1)
-            #             prev_head_id = sec_alpha_cur_tag.get('id')
-            #             sec_alpha = 'a'
-            #         elif inr_cap_alpha_cur_tag:
-            #             inr_cap_alpha_cur_tag.append(num_ol1)
-            #             prev_head_id = inr_cap_alpha_cur_tag.get('id')
-            #         elif alpha_cur_tag:
-            #             alpha_cur_tag.append(num_ol1)
-            #             prev_head_id = alpha_cur_tag.get('id')
-            #         else:
-            #             prev_head_id = p_tag.find_previous(["h4", "h3"]).get("id")
-            #             if prev_head_id in ol_list:
-            #                 ol_count += 1
-            #             else:
-            #                 ol_count = 1
-            #             ol_list.append(prev_head_id)
-            #     else:
-            #
-            #         num_ol1.append(p_tag)
-            #
-            #         if sec_alpha_cur_tag:
-            #             sec_alpha = 'a'
-            #         if p_tag.find_previous("h4") and re.search(r'^(ARTICLE|Article) [IVX]+',
-            #                                                    p_tag.find_previous("h4").text.strip()):
-            #             main_sec_alpha = 'a'
-            #
-            #     prev_num_id1 = f'{prev_head_id}ol{ol_count}{num_count}'
-            #     p_tag["id"] = f'{prev_head_id}ol{ol_count}{num_count}'
-            #     p_tag.string = re.sub(rf'^{num_count}\.', '', current_tag_text)
-            #     num_count += 1
-            #
-            #     if re.search(r'^\d+\.\s*?a\.', current_tag_text):
-            #         sec_alpha_ol = self.soup.new_tag("ol", type="a")
-            #         li_tag = self.soup.new_tag("li")
-            #         li_tag.string = re.sub(r'^\d+\.\s*?a\.', '', current_tag_text)
-            #         sec_alpha_cur_tag = li_tag
-            #         cur_tag = re.search(r'^(?P<cid>\d+)\.\s*?a\.', current_tag_text)
-            #         prev_id = f'{num_tag.get("id")}{cur_tag.group("cid")}'
-            #         li_tag["id"] = f'{num_tag.get("id")}{cur_tag.group("cid")}a'
-            #         sec_alpha_ol.append(li_tag)
-            #         p_tag.string = ""
-            #         p_tag.append(sec_alpha_ol)
-            #         sec_alpha = "b"
-
             elif re.search(r'^\([a-z]{2,3}\)', current_tag_text) and p_tag.name != "li":
                 previous_li_tag = p_tag
                 curr_id = re.search(r'^\((?P<cur_id>[a-z]+)\)', current_tag_text).group("cur_id")
