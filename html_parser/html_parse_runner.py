@@ -11,6 +11,8 @@ import importlib
 import multiprocessing
 import re
 import traceback
+from datetime import datetime
+from loguru import logger
 from concurrent.futures import ProcessPoolExecutor
 import os
 import logging
@@ -25,6 +27,7 @@ def start_parsing(arguments):
         all files of particular state.
     """
 
+    release_number = None
     cpu_count = multiprocessing.cpu_count()
     file_list = []
     state_key = arguments.state_key
@@ -40,7 +43,8 @@ def start_parsing(arguments):
             input_file_name = os.path.basename(path)
             release_number = re.search(r'/r(?P<rid>\d+)', os.path.dirname(path)).group("rid")
             soup_obj = parser_obj(state_key, path, release_number, input_file_name).run()
-            add_cite_to_file(soup_obj, state_key, release_number, input_file_name)
+            id_dictionary = getting_header_id_dict(state_key, release_number)
+            # add_cite_to_file(soup_obj, state_key, release_number, input_file_name, id_dictionary)
 
         else:
             subdirectories_files = [x for x in glob.glob(f'{path}/**', recursive=True) if os.path.isfile(x)]
@@ -59,71 +63,116 @@ def start_parsing(arguments):
         future_list = []
         for file in file_list:
             release_number = re.search(r'(?P<r_num>\d+)$', os.path.dirname(file)).group("r_num")
-            future_obj = executor.submit(parser_obj(state_key, file, release_number, os.path.basename(file)).run)
-            future_list.append({future_obj: [os.path.basename(file), release_number]})
+            future_obj = [executor.submit(parser_obj(state_key, file, release_number, os.path.basename(file)).run)]
+            future_list.append({future_obj[0]: [os.path.basename(file), release_number]})
+
+        executor.shutdown(wait=True)
+        id_dictionary = getting_header_id_dict(state_key, release_number)
 
         for item in future_list:
             for future_obj in concurrent.futures.as_completed(item.keys()):
                 try:
                     future_obj.result()
-                    add_cite_to_file(future_obj.result(), state_key, item[future_obj][1], os.path.basename(item[future_obj][0]))
+                    # add_cite_to_file(future_obj.result(), state_key, item[future_obj][1],
+                    #                  os.path.basename(item[future_obj][0]), id_dictionary)
                 except Exception as exc:
                     exception_on = f'{exc}\n------------------------\n' \
                                    f'{item[future_obj][0]}'
                     logging.exception(exception_on, traceback.format_exc())
 
 
-def add_cite_to_file(soup_obj, state_key, release_number, input_file_name):
+def getting_header_id_dict(state_key, release_number):
     id_dictionary = {}
-    cite_parser_obj = getattr(importlib.import_module('regex_pattern'), f'CustomisedRegex{state_key}')()
-    with open("header_ids.txt") as file:
-        for line in file:
-            (key, value) = line.split()
-            id_dictionary[key] = value
+    id_files = os.listdir(f'{state_key}_cite_id/{state_key}{release_number}')
+    for file in id_files:
+        with open(f'{state_key}_cite_id/{state_key}{release_number}/{file}') as f:
+            for line in f:
+                (key, value) = line.split()
+                id_dictionary[key] = value
+    return id_dictionary
 
+
+def add_cite_to_file(soup_obj, state_key, release_number, input_file_name, id_dictionary):
+    cite_parser_obj = getattr(importlib.import_module('regex_pattern'), f'CustomisedRegex{state_key}')()
     soup = BeautifulSoup(soup_obj, "html.parser")
 
     cite_p_tags = []
     for tag in soup.findAll(
-            lambda tag: getattr(cite_parser_obj, "cite_tag_pattern").search(tag.get_text()) and tag.name == 'p'
-                        and tag not in cite_p_tags):
+            lambda tag: getattr(cite_parser_obj, "cite_tag_pattern").search(tag.get_text()) and tag.name in ['p', 'li']
+                        and tag not in cite_p_tags and not tag.a and tag.parent.name != 'ul'):
         cite_p_tags.append(tag)
         text = str(tag)
 
         for match in set(x[0] for x in getattr(cite_parser_obj, "cite_pattern").findall(tag.text.strip())):
             inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<b>|</b>|<p>|<p.+>', '', text, re.DOTALL)
             id_reg = getattr(cite_parser_obj, "cite_pattern").search(match.strip())
-            file_name = re.search(r'^(?P<name>.+\.)(?P<tid>\d+[.\w]*)\.html$', input_file_name.strip())
-            title_id = file_name.group("tid").zfill(2)
+            if re.search(r'^(?P<name>[a-zA-Z.]+\.)(?P<tid>\d+(\.\w)*)\.html$', input_file_name.strip()):
+                file_name_pattern = re.search(r'^(?P<name>[a-zA-Z.]+\.)(?P<tid>\d+(\.\w)*)\.html$',
+                                              input_file_name.strip())
+                title_id = file_name_pattern.group("tid").zfill(2)
+                file_name = file_name_pattern.group("name")
+            else:
+                file_name = f"{re.search(r'^(?P<name>[a-zA-Z.]+)constitution', input_file_name.strip()).group('name')}title."
+                title_id = None
+
             cite_title_id = id_reg.group("title").strip().zfill(2)
 
-            for key in id_dictionary.keys():
-                if re.search(rf'^{id_reg.group("cite")}$', key):
-                    tag.clear()
-                    if cite_title_id == title_id:
-                        target = "_self"
-                        a_id = f'#{id_dictionary[key]}'
-                    else:
-                        target = "_blank"
-                        a_id = f'{file_name.group("name")}{cite_title_id}.html#{id_dictionary[key]}'
+            if id_reg.group("ol"):
+                ol_id = re.sub(r'[() ]+', '', id_reg.group("ol"))
+                cite_pattern = f'{id_reg.group("cite")}ol1{ol_id}'
+            else:
+                cite_pattern = id_reg.group("cite")
 
-                    text = re.sub(fr'\s{re.escape(match)}',
-                                  f' <cite class="ocak"><a href="{a_id}" target="{target}">{match}</a></cite>',
-                                  inside_text, re.I)
-                    tag.append(BeautifulSoup(text))
+            if cite_pattern in id_dictionary:
+                cite_id = id_dictionary[cite_pattern]
+                if cite_title_id == title_id:
+                    target = "_self"
+                    a_id = f'#{cite_id}'
+                else:
+                    target = "_blank"
+                    a_id = f'{file_name}{cite_title_id}.html#{cite_id}'
+
+                tag.clear()
+                text = re.sub(fr'\s{re.escape(match)}',
+                              f' <cite class="ocak"><a href="{a_id}" target="{target}">{match}</a></cite>',
+                              inside_text, re.I)
+                tag.append(BeautifulSoup(text))
+                tag.html.unwrap()
+                tag.body.unwrap()
+                if tag.p:
+                    tag.p.unwrap()
+
+            elif not os.path.exists(
+                    f'{state_key}_cite_id/{state_key}{release_number}/{state_key}{release_number}_{cite_title_id}_ids.txt'):
+                logger.error(f"parsing {file_name}{cite_title_id}.html is incomplete....unable to add citation")
 
         for match in set(
-                x for x in re.findall(r'N\.D\. LEXIS \d+',
-                                      tag.get_text())):
+                x[0] for x in getattr(cite_parser_obj, "code_pattern").findall(tag.text.strip())):
+
             inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<b>|</b>|<p>', '', text, re.DOTALL)
             tag.clear()
             text = re.sub(re.escape(match), f'<cite class="nd_code">{match}</cite>', inside_text, re.I)
             tag.append(BeautifulSoup(text))
+            tag.html.unwrap()
+            tag.body.unwrap()
+            if tag.p:
+                tag.p.unwrap()
+
+    for li_tag in soup.findAll("li"):
+        if re.search(r'^<li.+><li.+>', str(li_tag).strip()):
+            li_tag_text = re.sub(r'^\[<li.+>|</li>]$', '', str(li_tag.contents))
+            li_tag.clear()
+            li_tag.append(BeautifulSoup(li_tag_text))
+            li_tag.html.unwrap()
+            li_tag.body.unwrap()
+            if li_tag.p:
+                li_tag.p.unwrap()
 
     soup_str = str(soup.prettify())
     with open(
             f"/home/mis/PycharmProjects/cic_code_framework/transforms_output/{state_key.lower()}/oc{state_key.lower()}"
             f"/r{release_number}/{input_file_name}", "w") as file:
+        soup_str = re.sub(r'<span class.*?>\s*</span>|<p>\s*</p>', '', soup_str)
         file.write(soup_str)
 
     print("cite added", input_file_name)
@@ -135,12 +184,12 @@ if __name__ == '__main__':
         - set environment variables using parsed command line args
         - Call start parsing method with args as arguments
     """
-
+    start_time = datetime.now()
+    logger.info(start_time)
     parser = argparse.ArgumentParser()
     parser.add_argument("--state_key", help="State of which parser should be run", required=True, type=str)
     parser.add_argument("--path", help="file path which needs to be parsed", required=True, type=str)
     parser.add_argument("--run_after_release", help="particular files which needs to be parsed", type=str)
     args = parser.parse_args()
     start_parsing(args)
-    f = open("header_ids.txt", "w")
-    f.close()
+    logger.info(datetime.now() - start_time)

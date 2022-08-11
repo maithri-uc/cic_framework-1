@@ -2,12 +2,14 @@ import re
 from base_html_parser import ParseHtml
 from regex_pattern import CustomisedRegexAR
 import roman
+from loguru import logger
 
 
 class ARParseHtml(ParseHtml):
 
     def __init__(self, state_key, path, release_number, input_file_name):
         super().__init__(state_key, path, release_number, input_file_name)
+        self.h2_pattern_text = None
 
     def pre_process(self):
 
@@ -15,24 +17,36 @@ class ARParseHtml(ParseHtml):
             self.tag_type_dict: dict = {'head1': r'^Constitution\s+Of\s+The', 'ul': r'^PREAMBLE', 'head2': r'Article 1',
                                         'head4': '^Case Notes', 'ol_p': r'^\(\d\)', 'junk1': '^Annotations$',
                                         'head3': r'^§ \d', 'normalp': '^Editor\'s note'}
+            self.h2_text_con: list = ['PROCLAMATION']
+
+            self.h2_pattern_text_con = [r'^AMEND\. (?P<id>\d+)\.']
 
         else:
             self.tag_type_dict: dict = {'head1': r'TITLE \d', 'ul': r'^Subchapter 1 —', 'head2': 'Chapter 1',
                                         'head4': 'Research References',
-                                        'head3': r'^\d+-\d+([a-z])?-\d+(\.\d+)?\. (?!Acts 19)',
-                                        'ol_p': r'^\([a-z]\)', 'junk1': '^Annotations$',
-                                        'normalp': '^Publisher\'s Notes',
-                                        }
+                                        'head3': r'^\d+-\d+([a-z])?-\d+(\.\d+)?\. (?!Acts 19)', 'ol_p': r'^\([a-z]\)',
+                                        'junk1': '^Annotations$', 'normalp': '^Publisher\'s Notes'}
 
             file_no = re.search(r'gov\.ar\.code\.title\.(?P<fno>\d+)\.html', self.input_file_name).group("fno")
 
-            if file_no in ['02', '04', '05', '06', '09', '12', '15', '16', '17', '23', '26', '27', '28']:
+            if file_no in ['02', '05', '06', '09', '12', '14', '15', '16', '17', '20', '23', '18', '26', '27',
+                           '28']:
                 self.h2_order: list = ['subtitle', 'chapter', 'subchapter', 'article', '', '', '']
-            elif file_no in ['01', '03', '07', '08', '10', '11', '13', '14', '18', '19', '20', '21',
+            elif file_no in ['04']:
+                self.h2_order: list = ['subtitle', 'chapter', 'subchapter', 'Part', '', '']
+            elif file_no in ['01', '03', '07', '08', '10', '11', '13', '19', '21',
                              '22', '24', '25']:
                 self.h2_order: list = ['chapter', 'subchapter', 'article', '', '']
 
-        self.h4_head: list = ['History.', 'Compiler’s Notes.', 'NOTES TO DECISIONS', 'Case Notes']
+            self.h2_text: list = ['Title 28 — Appendix Administrative Order Number 12 — Official Probate Forms',
+                                  'APPENDIX — TITLE 10 SUNSET LAWS.',
+                                  'APPENDIX — TITLE 19 BOND ISSUES']
+            self.h3_pattern_text = [r'^(?P<id>\d\. Acts)', r'^(?P<id>\d+)\.']
+
+            self.h2_pattern_text = [r'^(?P<tag>Part)\s*(?P<id>\d+)', r'^(?P<tag>Subpart)\s*(?P<id>\d+)']
+
+        self.h4_head: list = ['History.', 'Compiler’s Notes.', 'NOTES TO DECISIONS',
+                              'Case Notes', 'Research References', 'RESEARCH REFERENCES']
 
         self.watermark_text = """Release {0} of the Official Code of Arkansas Annotated released {1}. 
                 Transformed and posted by Public.Resource.Org using rtf-parser.py version 1.0 on {2}. 
@@ -42,6 +56,10 @@ class ARParseHtml(ParseHtml):
         self.regex_pattern_obj = CustomisedRegexAR()
 
     def replace_tags_titles(self):
+
+        case_note_id_list = []
+        case_count = 1
+        case_tag = None
 
         super(ARParseHtml, self).replace_tags_titles()
 
@@ -64,10 +82,43 @@ class ARParseHtml(ParseHtml):
                         p_tag.name = "h5"
                         case_tag = p_tag
                         tag_text = re.sub(r'[\W\s]+', '', p_tag.text.strip()).lower()
-                        p_tag["id"] = f'{p_tag.find_previous({"h3", "h2", "h1"}).get("id")}-casenote-{tag_text}'
+                        p_tag_id = f'{p_tag.find_previous({"h3", "h2", "h1"}).get("id")}-casenote-{tag_text}'
+                        if p_tag_id in case_note_id_list:
+                            p_tag["id"] = f'{p_tag_id}.{case_count}'
+                            case_count += 1
+                        else:
+                            p_tag["id"] = f'{p_tag_id}'
+                            case_count = 1
+
+                        case_note_id_list.append(p_tag_id)
+
+                if p_tag.get("class") == [self.tag_type_dict["ol_p"]]:
+                    if ar_tag := re.search(r'^ARTICLE (?P<id>[IVX]+)', p_tag.text.strip()):
+                        p_tag.name = "h4"
+                        p_tag["id"] = f'{p_tag.find_previous("h3").get("id")}-{ar_tag.group("id")}'
+
+                    if re.search(r'^SECTION \d+\.', p_tag.text.strip()):
+                        alpha_text = re.search(r'^(SECTION \d+\.)', p_tag.text.strip()).group()
+                        num_text = re.sub(r'^SECTION \d+\.', '', p_tag.text.strip())
+                        new_p_tag = self.soup.new_tag("p")
+                        new_p_tag.string = alpha_text
+                        new_p_tag["class"] = [self.tag_type_dict['ol_p']]
+                        p_tag.insert_before(new_p_tag)
+                        p_tag.string = num_text
 
             elif p_tag.name == "h2" and p_tag.get("class") == "oneh2":
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
+
+    def add_anchor_tags(self):
+        super(ARParseHtml, self).add_anchor_tags()
+        for li_tag in self.soup.findAll("li", id=None):
+            if part_tag := re.search(r'^(?P<tag>Part|Subpart)\s*(?P<id>\d+)', li_tag.text.strip()):
+                chap_num = part_tag.group("id")
+                self.c_nav_count += 1
+                self.set_chapter_section_id(li_tag, chap_num,
+                                            sub_tag=f'{part_tag.group("tag")}',
+                                            prev_id=li_tag.find_previous("h2").get("id"),
+                                            cnav=f'cnav{self.c_nav_count:02}')
 
     def convert_paragraph_to_alphabetical_ol_tags(self):
         """
@@ -179,8 +230,10 @@ class ARParseHtml(ParseHtml):
                         inner_sec_alpha_id = f"{roman_cur_tag.get('id')}"
                 else:
                     inner_sec_alpha_ol.append(p_tag)
-
-                p_tag["id"] = f'{inner_sec_alpha_id}{inner_sec_alpha}'
+                if inner_sec_alpha in ["i", "v", "x"]:
+                    p_tag["id"] = f'{inner_sec_alpha_id}-{inner_sec_alpha}'
+                else:
+                    p_tag["id"] = f'{inner_sec_alpha_id}{inner_sec_alpha}'
                 p_tag.string = re.sub(rf'^\({inner_sec_alpha}\)', '', current_tag_text)
                 inner_sec_alpha = chr(ord(inner_sec_alpha) + 1)
 
@@ -218,6 +271,11 @@ class ARParseHtml(ParseHtml):
                         elif sec_alpha_cur_tag:
                             sec_alpha_cur_tag.append(roman_ol)
                             prev_id1 = sec_alpha_cur_tag.get("id")
+                        elif inner_alpha_cur_tag:
+                            inner_alpha_cur_tag.append(roman_ol)
+                            prev_id1 = inner_alpha_cur_tag.get("id")
+                        else:
+                            prev_id1 = f'{p_tag.find_previous({"h3", "h4", "h2"}).get("id")}ol{ol_count}'
 
                         rom_head = re.search(r'^\((?P<rom>[ivxl]+)\)', current_tag_text)
                         p_tag["id"] = f'{prev_id1}{rom_head.group("rom")}'
@@ -297,8 +355,6 @@ class ARParseHtml(ParseHtml):
                             p_tag.string = ""
                             p_tag.append(roman_ol)
                             small_roman = "ii"
-
-
 
                 else:
                     roman_ol.append(p_tag)
@@ -502,7 +558,7 @@ class ARParseHtml(ParseHtml):
                         cur_tag = re.search(r'^\((?P<cid>\d+)\)(\s)?\((?P<pid>A)\)\s?\((?P<nid>i)\)',
                                             current_tag_text)
                         prev_id1 = f'{num_cur_tag.get("id")}'
-                        inner_li_tag["id"] = f'{cap_alpha_cur_tag.get("id")}{cur_tag.group("nid")}'
+                        inner_li_tag["id"] = f'{cap_alpha_cur_tag.get("id")}i'
                         roman_ol.append(inner_li_tag)
                         cap_alpha_cur_tag.string = ""
                         cap_alpha_cur_tag.append(roman_ol)
@@ -582,7 +638,7 @@ class ARParseHtml(ParseHtml):
                         cur_tag = re.search(r'^\((?P<cid>[A-Z]+)\)(\s)?\((?P<pid>i)\)\s?\((?P<nid>a)\)',
                                             current_tag_text)
                         inner_sec_alpha_id = f'{cap_alpha_cur_tag.get("id")}'
-                        inner_li_tag["id"] = f'{cap_alpha_cur_tag.get("id")}{cur_tag.group("nid")}'
+                        inner_li_tag["id"] = f'{cap_alpha_cur_tag.get("id")}a'
                         inner_sec_alpha_ol.append(inner_li_tag)
                         roman_cur_tag.string = ""
                         roman_cur_tag.append(inner_sec_alpha_ol)
@@ -643,6 +699,9 @@ class ARParseHtml(ParseHtml):
                     elif inner_alpha_cur_tag:
                         inner_alpha_cur_tag.append(inner_num_ol)
                         num_id1 = inner_alpha_cur_tag.get('id')
+                    elif num_cur_tag:
+                        num_cur_tag.append(inner_num_ol)
+                        num_id1 = num_cur_tag.get('id')
                     elif sec_alpha_cur_tag:
                         sec_alpha_cur_tag.append(inner_num_ol)
                         num_id1 = sec_alpha_cur_tag.get('id')
@@ -711,7 +770,7 @@ class ARParseHtml(ParseHtml):
                 p_tag["id"] = f'{sec_alpha_id}{main_sec_alpha}{main_sec_alpha}'
                 main_sec_alpha = chr(ord(main_sec_alpha) + 1)
 
-            if p_tag.name in ['h3', 'h4', 'h5'] or re.search(r'SECTION \d+\.', current_tag_text):
+            if p_tag.name in ['h3', 'h4', 'h5'] or re.search(r'^SECTION \d+\.', current_tag_text):
                 cap_alpha = 'A'
                 cap_alpha_cur_tag = None
                 num_count = 1
@@ -732,25 +791,54 @@ class ARParseHtml(ParseHtml):
                 roman_cur_tag1 = None
                 inner_cap_alpha_cur_tag = None
 
-        print('ol tags added')
+        logger.info("ol tags added")
 
     def create_analysis_nav_tag(self):
         super(ARParseHtml, self).create_case_note_analysis_nav_tag()
-        print("Case Note nav created")
+        logger.info("Case Note nav created")
 
-    def add_cite(self):
-        self.file_name = 'gov.ar.code.title.'
-        cite_p_tags = []
-        for self.tag in self.soup.findAll(lambda tag: re.search(r"§+\s(\W+)?\d+-\w+-\d+(\.\d+)?"
-                                                                r"|\d+ Ga\.( App\.)? \d+"
-                                                                r"|\d+ S\.E\.(2d)? \d+"
-                                                                r"|\d+ U\.S\.C\. § \d+(\(\w\))?"
-                                                                r"|\d+ S\. (Ct\.) \d+"
-                                                                r"|\d+ L\. (Ed\.) \d+"
-                                                                r"|\d+ L\.R\.(A\.)? \d+"
-                                                                r"|\d+ Am\. St\.( R\.)? \d+"
-                                                                r"|\d+ A\.L\.(R\.)? \d+",
-                                                                tag.get_text()) and tag.name == 'p'
-                                                      and tag not in cite_p_tags):
-            cite_p_tags.append(self.tag)
-            super(ARParseHtml, self).add_cite()
+    def replace_tags_constitution(self):
+
+        super(ARParseHtml, self).replace_tags_constitution()
+
+        case_count = 1
+        case_note_id_list = []
+
+        for tag in self.soup.find_all():
+            if tag.get("class") == [self.tag_type_dict["head4"]] and not re.search(r'^Case Notes$', tag.text.strip()):
+                if re.search(r'^—\w+', tag.text.strip()):
+                    tag.name = "h5"
+                    inner_case_tag = tag
+                    tag_text = re.sub(r'[\W\s]+', '', tag.text.strip()).lower()
+                    tag["id"] = f'{case_tag.get("id")}-{tag_text}'
+
+                elif re.search(r'^— —\w+', tag.text.strip()):
+                    pass
+                elif re.search(r'^— — —\w+', tag.text.strip()):
+                    pass
+                elif re.search(r'^— — — —\w+', tag.text.strip()):
+                    pass
+                else:
+                    tag.name = "h5"
+                    case_tag = tag
+                    tag_text = re.sub(r'[\W\s]+', '', tag.text.strip()).lower()
+                    p_tag_id = f'{tag.find_previous({"h3", "h2", "h1"}).get("id")}-casenote-{tag_text}'
+                    if p_tag_id in case_note_id_list:
+                        tag["id"] = f'{p_tag_id}.{case_count}'
+                        case_count += 1
+                    else:
+                        tag["id"] = f'{p_tag_id}'
+                        case_count = 1
+
+                    case_note_id_list.append(p_tag_id)
+
+    def add_anchor_tags_con(self):
+        super(ARParseHtml, self).add_anchor_tags_con()
+        for li_tag in self.soup.find_all("li"):
+            if not li_tag.get("id") and re.search(r'^AMEND\. \d+\.', li_tag.text.strip()):
+                chap_num = re.search(r'^AMEND\. (?P<id>\d+)\.', li_tag.text.strip()).group("id")
+                self.c_nav_count += 1
+                self.set_chapter_section_id(li_tag, chap_num,
+                                            sub_tag="-amd",
+                                            prev_id=li_tag.find_previous("h2", class_="gen").get("id"),
+                                            cnav=f'cnav{self.c_nav_count:02}')

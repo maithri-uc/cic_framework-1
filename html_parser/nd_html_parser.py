@@ -8,18 +8,24 @@ class NDParseHtml(ParseHtml):
 
     def __init__(self, state_key, path, release_number, input_file_name):
         super().__init__(state_key, path, release_number, input_file_name)
-        self.file_name = None
 
     def pre_process(self):
-        self.tag_type_dict: dict = {'head1': r'TITLE \d+', 'ul': r'^CHAPTER \d+(\.\d+)*-\d+',
-                                    'head2': r'^CHAPTER \d+(\.\d+)*-\d+',
-                                    'head4': r'^Source:',
-                                    'head3': r'^\d+(\.\d+)*-\d+-\d+\.(\d+\.)*',
-                                    'junk1': '^Annotations$', 'note_tag': '^Notes to Decisions'}
+        if re.search('constitution', self.input_file_name):
+            self.tag_type_dict: dict = {
+                'head1': r'^CONSTITUTION OF NORTH DAKOTA|CONSTITUTION OF THE UNITED STATES OF AMERICA',
+                'ul': r'^PREAMBLE|^§ \d\.', 'head2': '^ARTICLE (I|1)',
+                'head4': '^Source:', 'junk1': '^Text$',
+                'head3': r'^Section \d\.|^§ \d\.', 'NTD': '^Notes to Decisions'}
+        else:
+            self.tag_type_dict: dict = {'head1': r'TITLE \d+', 'ul': r'^CHAPTER \d+(\.\d+)*-\d+',
+                                        'head2': r'^CHAPTER \d+(\.\d+)*-\d+',
+                                        'head4': r'^Source:',
+                                        'head3': r'^\d+(\.\d+)*-\d+-\d+\.(\d+\.)*',
+                                        'junk1': '^Annotations$', 'note_tag': '^Notes to Decisions'}
 
         self.h4_head: list = ['Revision of title. —', 'Cross references. —', 'Law reviews. —', 'Editor\'s notes. —',
-                              'Official Comments.'
-                              'History.', 'Effective dates. —', 'Notes to Decisions', 'DECISIONS UNDER PRIOR LAW']
+                              'Official Comments.''History.', 'Effective dates. —', 'Notes to Decisions',
+                              'DECISIONS UNDER PRIOR LAW', 'DECISIONS UNDER PRIOR PROVISIONS']
 
         self.junk_tag_class = ['Apple-converted-space', 'Apple-tab-span']
 
@@ -125,6 +131,7 @@ class NDParseHtml(ParseHtml):
 
                         note_to_decision_id.append(p_tag_id)
 
+        self.replace_h3_title()
         logger.info("Tags are replaced in the child class")
 
     def convert_paragraph_to_alphabetical_ol_tags(self):
@@ -319,6 +326,145 @@ class NDParseHtml(ParseHtml):
         logger.info("ol tags are created in child class")
 
     def create_analysis_nav_tag(self):
-        super(NDParseHtml, self).create_Notes_to_decision_analysis_nav_tag()
+        if re.search('constitution', self.input_file_name):
+            self.create_Notes_to_decision_analysis_nav_tag_con()
+        else:
+            super(NDParseHtml, self).create_Notes_to_decision_analysis_nav_tag()
+
         logger.info("Note to decision nav is created in child class")
 
+    def replace_tags_constitution(self):
+        super(NDParseHtml, self).replace_tags_constitution()
+
+        note_to_decision_id = []
+        note_to_decision_list = []
+        h4_count = 1
+
+        for p_tag in self.soup.find_all("p", class_=self.tag_type_dict["head2"]):
+            if re.search('^(TRANSITION SCHEDULE|ARTICLES|DISTRICT COURTS|COUNTY COURTS|'
+                         'JUSTICES OF THE PEACE|POLICE MAGISTRATES|MISCELLANEOUS|ARTICLES OF AMENDMENT)$',
+                         p_tag.text.strip()):
+                p_tag.name = "h2"
+                p_tag_text = re.sub(r'\W+', '', p_tag.text.strip()).lower()
+                p_tag["id"] = f"{p_tag.find_previous('h1').get('id')}-{p_tag_text}"
+                p_tag["class"] = "oneh2"
+            elif self.regex_pattern_obj.article_pattern_con.search(p_tag.text.strip()):
+                p_tag.name = "h4"
+                p_tag["id"] = f"{p_tag.find_previous('h2', class_='oneh2').get('id')}" \
+                              f"a{self.regex_pattern_obj.article_pattern_con.search(p_tag.text.strip()).group('id').zfill(2)}"
+
+        self.replace_h3_tags_con()
+
+        for p_tag in self.soup.find_all("p"):
+            if p_tag.get("class") == [self.tag_type_dict["NTD"]]:
+                p_tag_text = re.sub(r'\W+','',p_tag.text.strip())
+                if p_tag_text in note_to_decision_list:
+
+                    if re.search(r'^—\w+', p_tag.text.strip()):
+                        p_tag.name = "h5"
+                        inner_case_tag = p_tag
+                        tag_text = re.sub(r'[\W\s]+', '', p_tag.text.strip()).lower()
+                        p_tag_inner_id = f'{case_tag.get("id")}-{tag_text}'
+
+                        if p_tag_inner_id in note_to_decision_id:
+                            p_tag["id"] = f'{case_tag.get("id")}-{tag_text}.{count:02}'
+                            count += 1
+                        else:
+                            p_tag["id"] = f'{case_tag.get("id")}-{tag_text}'
+                            count = 1
+                        note_to_decision_id.append(p_tag_inner_id)
+
+                    elif re.search(r'^— —\w+', p_tag.text.strip()):
+                        p_tag.name = "h5"
+                        inner_p_tag = p_tag
+
+                        tag_text = re.sub(r'[\W\s]+', '', p_tag.text.strip()).lower()
+                        p_tag_inner1_id = f'{inner_case_tag.get("id")}-{tag_text}'
+
+                        if p_tag_inner1_id in note_to_decision_id:
+                            p_tag["id"] = f'{inner_case_tag.get("id")}-{tag_text}.{count:02}'
+                            count += 1
+                        else:
+                            p_tag["id"] = f'{inner_case_tag.get("id")}-{tag_text}'
+                            count = 1
+                        note_to_decision_id.append(p_tag_inner1_id)
+
+                    elif re.search(r'^— — —\w+', p_tag.text.strip()):
+                        pass
+                    elif re.search(r'^— — — —\w+', p_tag.text.strip()):
+                        pass
+
+                    elif re.search(r'^[IVX]+\.', p_tag.text.strip()):
+                        p_tag.name = "h5"
+                        rom_tag = p_tag
+                        rom_num = re.search(r'^(?P<id>[IVX]+)\.', p_tag.text.strip()).group("id")
+                        rom_id = f'{p_tag.find_previous("h3").get("id")}-notetodecision-{rom_num}'
+                        if rom_id in note_to_decision_id:
+                            p_tag["id"] = f'{rom_id}.{h5count:02}'
+                            h5count += 1
+                        else:
+                            p_tag["id"] = f'{rom_id}'
+                            h5count = 1
+
+                        note_to_decision_id.append(rom_id)
+
+                    else:
+                        p_tag.name = "h5"
+                        case_tag = p_tag
+                        tag_text = re.sub(r'[\W\s]+', '', p_tag.text.strip()).lower()
+
+                        if rom_tag:
+                            p_tag_id = f'{rom_tag.get("id")}-{tag_text}'
+                        else:
+                            p_tag_id = f'{p_tag.find_previous("h3").get("id")}-notetodecision-{tag_text}'
+
+                        if p_tag_id in note_to_decision_id:
+                            p_tag["id"] = f'{p_tag_id}.{h5count:02}'
+                            h5count += 1
+                        else:
+                            p_tag["id"] = f'{p_tag_id}'
+                            h5count = 1
+
+                        note_to_decision_id.append(p_tag_id)
+                else:
+                    self.replace_h4_tag_titles(p_tag, h4_count)
+                    self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
+
+            if p_tag.get("class") == [self.tag_type_dict["NTD"]] or \
+                    p_tag.get("class") == [self.tag_type_dict["head4"]]:
+                if re.search(r'^Notes to Decisions|^DECISIONS UNDER PRIOR LAW|^Analysis', p_tag.text.strip(), re.I):
+                    for tag in p_tag.find_next_siblings():
+                        if tag.get("class") == [self.tag_type_dict["head4"]] \
+                                and not re.search(r'^\d+\.|^Analysis', tag.text.strip()):
+                            tag.name = "li"
+                            tag["class"] = "note"
+                            tag_text = re.sub(r'\W+','',tag.text.strip())
+                            note_to_decision_list.append(tag_text)
+                        elif tag.get("class") == [self.tag_type_dict["NTD"]]:
+                            rom_tag = None
+                            break
+
+
+    def add_anchor_tags_con(self):
+        super(NDParseHtml, self).add_anchor_tags_con()
+        self.c_nav_count = 0
+        for li in self.soup.find_all("li"):
+            if not li.get("id"):
+                if re.search('^(TRANSITION SCHEDULE|ARTICLES|DISTRICT COURTS|'
+                             'COUNTY COURTS|JUSTICES OF THE PEACE|POLICE MAGISTRATES|'
+                             'MISCELLANEOUS|ARTICLES OF AMENDMENT)$', li.text.strip()):
+                    li_tag_text = re.sub(r'\W+', '', li.text.strip()).lower()
+                    self.c_nav_count = int(
+                        re.search(r'cnav(?P<ncount>\d+)', li.find_previous("li").get("id").strip()).group("ncount")) + 1
+                    self.set_chapter_section_id(li, li_tag_text,
+                                                sub_tag="-",
+                                                prev_id=li.find_previous("h1").get("id"),
+                                                cnav=f'cnav{self.c_nav_count:02}')
+
+                elif self.regex_pattern_obj.article_pattern_con.search(li.text.strip()):
+                    li_tag_num = self.regex_pattern_obj.article_pattern_con.search(li.text.strip()).group("id")
+                    self.c_nav_count += 1
+                    self.set_chapter_section_id(li, li_tag_num,
+                                                sub_tag="a",
+                                                prev_id=li.find_previous("h2").get("id"),
+                                                cnav=f'cnav{self.c_nav_count:02}')

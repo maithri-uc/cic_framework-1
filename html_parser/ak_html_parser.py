@@ -9,6 +9,7 @@ import re
 from base_html_parser import ParseHtml
 from regex_pattern import RegexPatterns, CustomisedRegexAK
 import roman
+from loguru import logger
 
 
 class AKParseHtml(ParseHtml, RegexPatterns):
@@ -32,7 +33,7 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                                         'head3': r'^Sec\. \d+\.\d+\.\d+\.',
                                         'junk1': '^History$', 'NTD': '^Notes to Decisions'}
 
-        self.h4_head: list = ['History.', 'Compiler’s Notes.', 'NOTES TO DECISIONS','Notes to Decisions']
+        self.h4_head: list = ['History.', 'Compiler’s Notes.', 'NOTES TO DECISIONS', 'Notes to Decisions']
         self.junk_tag_class = ['Apple-converted-space', 'Apple-tab-span']
 
         self.watermark_text = """Release {0} of the Official Code of Alaska Annotated released {1}. 
@@ -65,6 +66,7 @@ class AKParseHtml(ParseHtml, RegexPatterns):
 
             elif p_tag.name == "h2" and p_tag.get("class") == "oneh2":
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
+        self.replace_h3_title()
 
     def convert_paragraph_to_alphabetical_ol_tags(self):
         """
@@ -241,7 +243,7 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                 inr_sec_alpha_cur_tag = None
                 inr_num_cur_tag = None
 
-        print('ol tags added')
+        logger.info("ol tags added")
 
     def create_analysis_nav_tag(self):
         """
@@ -252,6 +254,13 @@ class AKParseHtml(ParseHtml, RegexPatterns):
         rom = "I"
 
         if re.search('constitution', self.input_file_name):
+
+            for tag in self.soup.find_all("p", class_=[self.tag_type_dict['note_tag']]):
+                if re.search(r'^([IVX]+\.|[A-Z]\.|\d+\.)', tag.text.strip()) \
+                        and re.search(r'^Notes to Decisions$', tag.find_previous('h4').text.strip()):
+                    tag.name = "li"
+                    tag['class'] = "note"
+
             for case_tag in self.soup.find_all():
                 if case_tag.name == "li" and case_tag.get("class") == "note":
                     if re.search(fr'^{rom}\.', case_tag.text.strip()):
@@ -262,7 +271,7 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                         else:
                             rom_ul.append(case_tag)
 
-                        rom_num = re.sub(r'[\W\s]+','',case_tag.text.strip()).lower()
+                        rom_num = re.sub(r'[\W\s]+', '', case_tag.text.strip()).lower()
                         a_tag_id = f'#{case_tag.find_previous("h3").get("id")}-notestodecisions-{rom_num}'
                         rom_tag_id = f'#{case_tag.find_previous("h3").get("id")}-notestodecisions-{rom_num}'
                         rom = roman.toRoman(roman.fromRoman(rom.upper()) + 1)
@@ -277,11 +286,12 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                         else:
                             alpha_ul.append(case_tag)
 
-                        alpha_id = re.sub(r'[\W\s]+','', case_tag.text.strip().strip()).lower()
+                        alpha_id = re.sub(r'[\W\s]+', '', case_tag.text.strip().strip()).lower()
+                        alpha_tag_id = f'{rom_tag_id}-{alpha_id}'
                         a_tag_id = f'{rom_tag_id}-{alpha_id}'
                         alpha = chr(ord(alpha) + 1)
 
-                    elif re.search(r'^[0-9]+\.', case_tag.text.strip().strip()):
+                    elif re.search(r'^\d+\.', case_tag.text.strip().strip()):
                         digit_tag = case_tag
                         if re.search(r'^1\.', case_tag.text.strip().strip()):
                             digit_ul = self.soup.new_tag("ul", **{"class": "leaders"})
@@ -291,7 +301,7 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                             digit_ul.append(case_tag)
 
                         digit = re.search(r'^(?P<nid>[0-9]+)\.', case_tag.text.strip().strip()).group("nid")
-                        a_tag_id = f'{alpha_tag.get("id")}-{digit}'
+                        a_tag_id = f'{alpha_tag_id}-{digit}'
 
                     anchor = self.soup.new_tag('a', href=a_tag_id)
                     anchor.string = case_tag.text
@@ -300,39 +310,36 @@ class AKParseHtml(ParseHtml, RegexPatterns):
 
                 elif case_tag.name == "h5":
                     rom = "I"
+            logger.info("note to decision nav created")
 
-            print("note to decision nav created")
         else:
             super(AKParseHtml, self).create_case_note_analysis_nav_tag()
-            print("case note nav created")
-
-    def add_cite(self):
-        """
-            - Call add_cite method of base class
-            with file name and the tag which matches cite pattern
-
-        """
-
-        self.file_name = 'gov.ak.code.title.'
-        cite_p_tags = []
-        for self.tag in self.soup.findAll(
-                lambda tag: re.search(
-                    r'AS\s\d+\.\d+\.\d+((\([a-z]\))(\(\d+\))*)*|\d+ AAC \d+, art\. \d+\.|State v\. Yi, \d+ P\.\d+d \d+',
-                    tag.get_text()) and tag.name == 'p'
-                            and tag not in cite_p_tags):
-            cite_p_tags.append(self.tag)
-            super(AKParseHtml, self).add_cite()
-        print("cite is added")
+            logger.info("case note nav created")
 
     def replace_tags_constitution(self):
         self.regex_pattern_obj = CustomisedRegexAK()
         super(AKParseHtml, self).replace_tags_constitution()
 
-        note_to_decision_id_list:list = []
+        note_to_decision_id_list: list = []
+        rom = "I"
+        alpha = None
+        num = None
+        NTD_rom_head_id = None
+        NTD_alpha_head_id = None
 
-        for header_tag in self.soup.find_all("p"):
+        for p_tag in self.soup.find_all("p", class_=self.tag_type_dict["head2"]):
+            if re.search('^Ordinance No\. \d',
+                         p_tag.text.strip()):
+                p_tag.name = "h2"
+                p_tag_text = re.sub(r'\W+', '', p_tag.text.strip()).lower()
+                p_tag["id"] = f"{p_tag.find_previous('h1').get('id')}-{p_tag_text}"
+                p_tag["class"] = "oneh2"
+
+        self.replace_h3_tags_con()
+
+        for header_tag in self.soup.find_all():
             if header_tag.get("class") == [self.tag_type_dict["head4"]]:
-                if re.search(r'^[IVX]+\.', header_tag.text.strip()):
+                if re.search(fr'^{rom}\.', header_tag.text.strip()):
                     header_tag.name = "h5"
                     NTD_text = re.sub(r'\W+', '', header_tag.text.strip()).lower()
                     NTD_rom_head_id = f"{header_tag.find_previous('h4').get('id')}-{NTD_text}"
@@ -342,8 +349,10 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                     else:
                         header_tag['id'] = f"{NTD_rom_head_id}"
                     note_to_decision_id_list.append(NTD_rom_head_id)
+                    rom = roman.toRoman(roman.fromRoman(rom.upper()) + 1)
+                    alpha = "A"
 
-                elif re.search(r'^[A-Z]\.', header_tag.text.strip()):
+                elif alpha and re.search(fr'^{alpha}\.', header_tag.text.strip()):
                     header_tag.name = "h5"
                     NTD_alpha_text = re.sub(r'\W+', '', header_tag.text.strip()).lower()
                     NTD_alpha_head_id = f"{NTD_rom_head_id}-{NTD_alpha_text}"
@@ -353,5 +362,33 @@ class AKParseHtml(ParseHtml, RegexPatterns):
                     else:
                         header_tag['id'] = f"{NTD_alpha_head_id}"
                     note_to_decision_id_list.append(NTD_alpha_head_id)
+                    alpha = chr(ord(alpha) + 1)
+                    num = 1
+                elif num and re.search(fr'^\d+\.', header_tag.text.strip()):
+                    header_tag.name = "h5"
+                    NTD_num = re.search(fr'^(?P<nid>\d+)\.', header_tag.text.strip()).group("nid")
+                    NTD_num_head_id = f"{NTD_alpha_head_id}-{NTD_num}"
 
+                    if NTD_num_head_id in note_to_decision_id_list:
+                        header_tag['id'] = f"{NTD_num_head_id}.1"
+                    else:
+                        header_tag['id'] = f"{NTD_num_head_id}"
+                    note_to_decision_id_list.append(NTD_num_head_id)
 
+            elif header_tag.name == "h3":
+                rom = "I"
+                num = None
+
+    def add_anchor_tags_con(self):
+        super(AKParseHtml, self).add_anchor_tags_con()
+        self.c_nav_count = 0
+        for li in self.soup.find_all("li"):
+            if not li.get("id"):
+                if re.search('^Ordinance No\. \d', li.text.strip()):
+                    li_tag_text = re.sub(r'\W+', '', li.text.strip()).lower()
+                    self.c_nav_count = int(
+                        re.search(r'cnav(?P<ncount>\d+)', li.find_previous("li").get("id").strip()).group("ncount")) + 1
+                    self.set_chapter_section_id(li, li_tag_text,
+                                                sub_tag="-",
+                                                prev_id=li.find_previous("h1").get("id"),
+                                                cnav=f'cnav{self.c_nav_count:02}')
