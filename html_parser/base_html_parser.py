@@ -12,7 +12,8 @@ class ParseHtml:
     def __init__(self, state_key, path, release_number, input_file_name):
 
         """Meta Data"""
-        self.chp_nav_count = None
+        self.h2_rename_pattern = None
+        self.chp_nav_count = 0
         self.h2_pattern_text_con = None
         self.h2_text_con = None
         self.h2_text = None
@@ -210,6 +211,7 @@ class ParseHtml:
 
         """
 
+        global prev_class_name
         text = re.search(r'^\S+', header_tag.text.strip()).group().lower()
 
         if text == self.h2_order[0]:
@@ -245,18 +247,33 @@ class ParseHtml:
                     h2_pattern = re.compile(list_pattern)
                     if h2_tag := h2_pattern.search(header_tag.text.strip()):
                         header_tag.name = "h2"
-                        prev_header_tag = header_tag.find_previous(
-                            lambda tag: tag.name == 'h2' and not h2_pattern.search(tag.text.strip()) and
-                                        not re.search(rf'{h2_tag.group("tag")}', tag.get("id").strip()))
+                        if re.search(r'(1|A|I)\.', header_tag.text.strip()):
+                            prev_header_tag = header_tag.find_previous(
+                                lambda tag: tag.name == 'h2' and not h2_pattern.search(tag.text.strip()) and
+                                            not re.search(rf'{h2_tag.group("tag")}', tag.get("id").strip()))
+                            prev_class_name = prev_header_tag.get("class")
+                        else:
+                            prev_header_tag = header_tag.find_previous("h2",class_=f'{prev_class_name}')
                         header_tag[
                             "id"] = f'{prev_header_tag.get("id")}{h2_tag.group("tag")}{h2_tag.group("id").zfill(2)}'
+
+        if self.h2_rename_pattern:
+            for list_pattern in self.h2_rename_pattern:
+                h2_pattern = re.compile(list_pattern)
+                if h2_tag := h2_pattern.search(header_tag.text.strip()):
+                    header_tag.name = "h3"
+                    prev_header_tag = header_tag.find_previous(
+                        lambda tag: tag.name == 'h2' and not h2_pattern.search(tag.text.strip()) and
+                                    not re.search(rf'{h2_tag.group("tag")}', tag.get("id").strip()))
+                    header_tag[
+                        "id"] = f'{prev_header_tag.get("id")}{h2_tag.group("tag")}{h2_tag.group("id").zfill(2)}'
 
     def replace_h3_titles(self, header_tag, h3_id_list):
         if sec_id := getattr(self.parser_obj, "section_pattern").search(header_tag.text.strip()):
             sec_id = re.sub(r'\s+|\.$', '', sec_id.group("id"))
             header_tag.name = "h3"
-            if header_tag.find_previous("h2", class_={"oneh2", "twoh2", "threeh2"}):
-                header_tag_id = f'{header_tag.find_previous("h2", class_={"oneh2", "twoh2", "threeh2"}).get("id")}s{sec_id.zfill(2)}'
+            if header_tag.find_previous({"h2", "h3"}, class_={"oneh2", "twoh2", "threeh2"}):
+                header_tag_id = f'{header_tag.find_previous({"h2", "h3"}, class_={"oneh2", "twoh2", "threeh2"}).get("id")}s{sec_id.zfill(2)}'
                 if header_tag_id in h3_id_list:
                     header_tag["id"] = f'{header_tag_id}.{self.h3_count:02}'
                     self.h3_count += 1
@@ -313,7 +330,7 @@ class ParseHtml:
 
             if h4_tag_id in self.h4_cur_id_list:
                 header_tag['id'] = f'{h4_tag_id}.{h4_count}'
-                h4_count += 1
+                self.h4_count += 1
             else:
                 header_tag['id'] = f'{h4_tag_id}'
 
@@ -325,7 +342,7 @@ class ParseHtml:
             based on the class of the tag ,the tag name is updated
         """
 
-        h4_count = 1
+        self.h4_count = 1
         h3_id_list: list = []
         self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
 
@@ -339,9 +356,16 @@ class ParseHtml:
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
                 if self.h2_text and header_tag.text.strip() in self.h2_text:
                     header_tag.name = "h2"
-                    p_tag_text = header_tag.text.strip().lower()
-                    header_tag["id"] = f'{self.soup.find("h1").get("id")}-{p_tag_text}'
+                    p_tag_text = re.sub(r'\W+', '', header_tag.text.strip()).lower()
+                    header_tag_id = f'{self.soup.find("h1").get("id")}-{p_tag_text}'
+                    if header_tag_id in self.h2_rep_id:
+                        header_tag["id"] = f'{header_tag_id}.{self.h2_id_count:02}'
+                        self.h2_id_count += 1
+                    else:
+                        header_tag["id"] = f'{header_tag_id}'
+                        self.h2_id_count = 1
                     header_tag["class"] = "oneh2"
+                    self.h2_rep_id.append(header_tag['id'])
                 else:
                     self.replace_h3_titles(header_tag, h3_id_list)
 
@@ -350,7 +374,7 @@ class ParseHtml:
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
 
             elif header_tag.get("class") == [self.tag_type_dict["head4"]]:
-                self.replace_h4_tag_titles(header_tag, h4_count)
+                self.replace_h4_tag_titles(header_tag, self.h4_count)
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
 
             elif header_tag.get("class") == [self.tag_type_dict["ul"]]:
@@ -452,7 +476,7 @@ class ParseHtml:
                     self.set_chapter_section_id(li_tag, sec_num, sub_tag, prev_id, cnav)
 
                 elif self.h2_text and li_tag.text.strip() in self.h2_text:
-                    chap_num = li_tag.text.strip().lower()
+                    chap_num = re.sub(r'\W+', '', li_tag.text.strip()).lower()
                     if li_tag.find_previous("li") and li_tag.find_previous("li").get("id"):
                         self.chp_nav_count = int(
                             re.search(r'cnav(?P<ncount>\d+)', li_tag.find_previous("li").get("id").strip()).group(
@@ -463,6 +487,25 @@ class ParseHtml:
                                                 sub_tag="-",
                                                 prev_id=li_tag.find_previous("h1").get("id"),
                                                 cnav=f'cnav{self.chp_nav_count:02}')
+                else:
+                    if self.h2_pattern_text:
+                        for list_pattern in self.h2_pattern_text:
+                            h2_pattern = re.compile(list_pattern)
+                            if h2_tag := h2_pattern.search(li_tag.text.strip()):
+                                self.c_nav_count += 1
+                                self.set_chapter_section_id(li_tag, h2_tag.group("id"),
+                                                            sub_tag=h2_tag.group("tag"),
+                                                            prev_id=li_tag.find_previous("h2").get("id"),
+                                                            cnav=f'cnav{self.c_nav_count:02}')
+
+            if self.h2_rename_pattern and li_tag.name == "li" and li_tag.a:
+                for list_tag in self.h2_rename_pattern:
+                    tag_pattern = re.compile(list_tag)
+                    if tag := tag_pattern.search(li_tag.a.text.strip()):
+                        li_tag[
+                            "id"] = f'{li_tag.find_previous("h2").get("id")}{tag.group("tag")}{tag.group("id").zfill(2)}'
+                        li_tag.a[
+                            "href"] = f'#{li_tag.find_previous("h2").get("id")}{tag.group("tag")}{tag.group("id").zfill(2)}'
 
             elif li_tag.name in ['h2', 'h3', 'h4']:
                 self.a_nav_count = 0
