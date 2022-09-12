@@ -7,7 +7,7 @@ class RegexPatterns:
     h2_chapter_pattern = re.compile(r'^chapter\s(?P<id>\d+([a-zA-Z])*)', re.I)
     h2_article_pattern = re.compile(r'^article\s(?P<id>\d+([a-zA-Z])*)', re.I)
     h2_part_pattern = re.compile(r'^part\s(?P<id>(\d+([a-zA-Z])*)|([IVX]+)*)', re.I)
-    h2_subtitle_pattern = re.compile(r'^Subtitle\s*(?P<id>\d+)',re.I)
+    h2_subtitle_pattern = re.compile(r'^Subtitle\s*(?P<id>\d+)', re.I)
     section_pattern_con1 = re.compile(r'^Section (?P<id>\d+)')
     amend_pattern_con = re.compile(r'^AMENDMENT (?P<id>\d+)', re.I)
     amp_pattern = re.compile(r'&(?!amp;)')
@@ -232,3 +232,67 @@ class CustomisedRegexKY(RegexPatterns):
                                   r"(Ky.\s?(App\.)?\s?LEXIS\s?\d+)|"
                                   r"(Ky.\s*(L. Rptr.\s*)*\d+)|"
                                   r"(OAG \d+-\d+))")
+
+
+class CustomisedRegexRI(RegexPatterns):
+    """ Customised regex patterns for RI code"""
+
+    h1_pattern = re.compile(r'^Title (?P<id>\d+[A-Z]?(\.\d+)?)')
+    h2_chapter_pattern = re.compile(r'^Chapter (?P<id>\d+(\.\d+)?(\.\d+)?([A-Z])?)')
+    h2_article_pattern = re.compile(r'^Article (?P<id>(\d+|[IVXCL]+))')
+    h2_part_pattern = re.compile(r'^Part (?P<id>(\d+|[IVXCL]+))')
+    h2_subpart_pattern = re.compile(r'^Subpart (?P<id>[A-Z0-9])')
+    amend_pattern_con = re.compile(r'^Amendment (?P<id>[IVXCL]+)')
+    article_pattern_con = re.compile(r'^Article (?P<id>[IVXCL]+)')
+    section_pattern = re.compile(r'(?P<id>^\d+[A-Z]?(\.\d+)?-\d+(-\d+)?([A-Z](-\d+)?)?(\.\d+(-\d+)?(\.\d+((\.\d+)?\.\d+)?)?(-\d+)?)?|^Chs\.\s*\d+\s*-\s*\d+\.)')
+    ul_pattern = re.compile(r'^Chapters? (?P<id>\d+(\.\d+)?(\.\d+)?([A-Z])?)')
+    section_pattern_1 = None
+    section_pattern_con = re.compile(r'^§ (?P<id>\d+)\.')
+    h1_pattern_con = re.compile(r'^Constitution of the State|^CONSTITUTION OF THE UNITED STATES')
+    h2_article_pattern_con = re.compile(r'^Article (?P<id>[IVXCL]+)')
+    code_pattern = re.compile(
+                    r'((R\.I\. Const\.,? ((Decl\. Rights )?(art\.|article|Art\.|Article)( \d+| ?[IVXCL]+) ?((\. |, )?(Sec\.|§{1,2}|Section)\s+(\d+|[IVXCL]+))?)?)(?!(Amend|amend))|'
+                    r'(\d+ R\.I\. \d+)|'
+                    r'(\d+ R\.I\. LEXIS \d+)|'
+                    r'(R\.I\. R\. Evid\. \d+)|'
+                    r'(\d+- ?RICR-\d+-\d+-\d+(\.\d+[A-Z0-9()]+)?)|'
+                    r'(R\.I\. Econ\. Dev\. Corp\. v\. Parking Co\.)|'
+                    r'(R\.I\. Gen\. Laws)|'
+                    r'(R\.I\. Airport Corp\.)|'
+                    r'(R\.I\. Const\.,? (Amend|amend)\.,? (Art\. )?(\d+|[IVXCL]+)(, (Sec\.|§{1,2}) \d+)?)|'
+                    r'(R\.I\. Super\. Ct\. R\. (Civ|Crim)\. P\. \d+(\. State v\. Long)?))')
+    cite_tag_pattern = re.compile(
+                    r'\d+[A-Z]?(\.\d+)?-\d+(-\d+)?([A-Z](-\d+)?)?(\.\d+(-\d+)?(\.\d+((\.\d+)?\.\d+)?)?(-\d+)?)?((\s?\([a-z0-9A-Z]+\))+)?|'
+                    r'((R\.I\. Const\.,? ((Decl\. Rights )?(art\.|article|Art\.|Article)( \d+| ?[IVXCL]+) ?((\. |, )?(Sec\.|§{1,2}|Section)\s+(\d+|[IVXCL]+))?)?)(?!(Amend|amend))|'
+                    r'(\d+ R\.I\. \d+)|'
+                    r'(\d+ R\.I\. LEXIS \d+)|'
+                    r'(R\.I\. R\. Evid\. \d+)|'
+                    r'(\d+- ?RICR-\d+-\d+-\d+(\.\d+[A-Z0-9()]+)?)|'
+                    r'(R\.I\. Econ\. Dev\. Corp\. v\. Parking Co\.)|'
+                    r'(R\.I\. Gen\. Laws)|'
+                    r'(R\.I\. Airport Corp\.)|'
+                    r'(R\.I\. Const\.,? (Amend|amend)\.,? (Art\. )?(\d+|[IVXCL]+)(, (Sec\.|§{1,2}|Section) \d+)?)|'
+                    r'(R\.I\. Super\. Ct\. R\. (Civ|Crim)\. P\. \d+(\. State v\. Long)?))')
+    cons_cite_pattern = re.compile(r'(R\.I\. Const\.,? ((Decl\. Rights )?(art\.|article|Art\.|Article)( \d+| ?[IVXCL]+) ?((\. |, )?(Sec\.|§{1,2}|Section)\s+(\d+|[IVXCL]+))?)?)(?!(Amend|amend))')
+    ri_cite_pattern = re.compile(r'((?P<title>R\.I\.) Const\.,? (art\.|article|Art\.|Article) ?(?P<article_num>[IVXCL]+) ?[.,]? (Sec\.|§{1,2}|Section)\s+(?P<sec_num>\d+))')
+    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+[A-Z]?(\.\d+)?)-(?P<chap>\d+)(-\d+)?([A-Z](-\d+)?)?(\.\d+(-\d+)?(\.\d+((\.\d+)?\.\d+)?)?(-\d+)?)?)(?P<ol>((\s?\([a-z0-9\sA-Z]+\))+)?))')
+
+
+class CustomisedRegexMS(RegexPatterns):
+    section_pattern = re.compile(
+        r'§§? (?P<id>\d+-\d+-\d+)')
+    ul_pattern = re.compile(r'^Chapter (?P<id>\d+)')
+    section_pattern_1 = None
+    cite_tag_pattern = re.compile(r'\d+-\d+-\d+(( ?\([a-z0-9A-Z]+\) ?)+)?|'
+                                  r'((\d+ Miss\. (L\.J\. |(App\. )?LEXIS )?\d+)|'
+                                  r'(Miss\. Code Ann\.)|'
+                                  r'(Miss\. Const\. (art\.|article|Art\.|Article) \d+, (Sec\.|§{1,2}|Section) \d+)|'
+                                  r'(Miss\. (Rule of |R\. )(Civil |Civ\. )(Proc\. |P\. )\d+(( ?\([a-z0-9\sA-Z]+\) ?)+)?)|'
+                                  r'((Inc\. v\. )?Miss\. Dep\'t of Revenue( v. AT&T Corp\., \d+)?))')
+    cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)-(?P<chap>\d+)-\d+)(?P<ol>(( ?\([a-z0-9\sA-Z]+\) ?)+)?))')
+    code_pattern = re.compile(
+        r'((\d+ Miss\. (L\.J\. |(App\. )?LEXIS )?\d+)|'
+        r'(Miss\. Code Ann\.)|'
+        r'( Miss\. Const\. (art\.|article|Art\.|Article) \d+, (Sec\.|§{1,2}|Section) \d+)|'
+        r'(Miss\. (Rule of |R\. )(Civil |Civ\. )(Proc\. |P\. )\d+(( ?\([a-z0-9\sA-Z]+\) ?)+)?)|'
+        r'((Inc\. v\. )?Miss\. Dep\'t of Revenue( v. AT&T Corp\., \d+)?))')
