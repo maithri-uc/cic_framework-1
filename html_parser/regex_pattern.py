@@ -262,7 +262,7 @@ class CustomisedRegexRI(RegexPatterns):
                     r'(R\.I\. Const\.,? (Amend|amend)\.,? (Art\. )?(\d+|[IVXCL]+)(, (Sec\.|§{1,2}) \d+)?)|'
                     r'(R\.I\. Super\. Ct\. R\. (Civ|Crim)\. P\. \d+(\. State v\. Long)?))')
     cite_tag_pattern = re.compile(
-                    r'\d+[A-Z]?(\.\d+)?-\d+(-\d+)?([A-Z](-\d+)?)?(\.\d+(-\d+)?(\.\d+((\.\d+)?\.\d+)?)?(-\d+)?)?((\s?\([a-z0-9A-Z]+\))+)?|'
+                    r'\d+[A-Z]?(\.\d+)?-\d+(-\d+)?([A-Z](-\d+)?)?(\.\d+(-\d+)?(\.\d+((\.\d+)?\.\d+)?)?(-\d+)?)?((\s?\([a-z0-9A-Z\n]+\))+)?|'
                     r'((R\.I\. Const\.,? ((Decl\. Rights )?(art\.|article|Art\.|Article)( \d+| ?[IVXCL]+) ?((\. |, )?(Sec\.|§{1,2}|Section)\s+(\d+|[IVXCL]+))?)?)(?!(Amend|amend))|'
                     r'(\d+ R\.I\. \d+)|'
                     r'(\d+ R\.I\. LEXIS \d+)|'
@@ -290,6 +290,8 @@ class CustomisedRegexMS(RegexPatterns):
                                   r'(Miss\. (Rule of |R\. )(Civil |Civ\. )(Proc\. |P\. )\d+(( ?\([a-z0-9\sA-Z]+\) ?)+)?)|'
                                   r'((Inc\. v\. )?Miss\. Dep\'t of Revenue( v. AT&T Corp\., \d+)?))')
     cite_pattern = re.compile(r'((?P<cite>(?P<title>\d+)-(?P<chap>\d+)-\d+)(?P<ol>(( ?\([a-z0-9\sA-Z]+\) ?)+)?))')
+    cons_cite_pattern = None
+    ri_cite_pattern = None
     code_pattern = re.compile(
         r'((\d+ Miss\. (L\.J\. |(App\. )?LEXIS )?\d+)|'
         r'(Miss\. Code Ann\.)|'
