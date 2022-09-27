@@ -283,6 +283,10 @@ class CustomisedRegexMS(RegexPatterns):
         r'§§? (?P<id>\d+-\d+-\d+)')
     ul_pattern = re.compile(r'^Chapter (?P<id>\d+)')
     section_pattern_1 = None
+    h2_article_pattern = re.compile(r'^Article (?P<id>\d+)')
+    h2_part_pattern = re.compile(r'^Part (?P<id>\d+)')
+    h2_subpart_pattern = re.compile(r'^Subpart (?P<id>\d+)')
+    h2_subarticle_pattern = re.compile(r'^Subarticle (?P<id>[A-Z])')
     cite_tag_pattern = re.compile(r'\d+-\d+-\d+(( ?\([a-z0-9A-Z]+\) ?)+)?|'
                                   r'((\d+ Miss\. (L\.J\. |(App\. )?LEXIS )?\d+)|'
                                   r'(Miss\. Code Ann\.)|'

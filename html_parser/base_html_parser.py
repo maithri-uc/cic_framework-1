@@ -656,7 +656,6 @@ class ParseHtml:
                                 text_ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
                                 analysis_p_tag.wrap(text_ul_tag)
                                 analysis_num_tag.append(text_ul_tag)
-
                             else:
                                 text_ul_tag.append(analysis_p_tag)
 
@@ -1315,12 +1314,12 @@ class ParseHtml:
                                         inner_h5_tag = inner_tag.find_next_sibling()
                                         inner_tag.wrap(new_h5_div)
                                         while True:
+                                            if not inner_h5_tag or inner_h5_tag.name in ['h3', 'h2', 'h4','h5']:
+                                                inner_next_tag = inner_h5_tag
+                                                break
                                             next_h5_child_tag = inner_h5_tag.find_next_sibling()
                                             new_h5_div.append(inner_h5_tag)
                                             inner_next_tag = next_h5_child_tag
-                                            if not next_h5_child_tag or next_h5_child_tag.name in ['h3', 'h2', 'h4',
-                                                                                                   'h5']:
-                                                break
                                             inner_h5_tag = next_h5_child_tag
                                         inner_tag = new_h5_div
                                     new_sub_sec_div.append(inner_tag)
@@ -1443,6 +1442,10 @@ class ParseHtml:
         "clean HTML"
         [text_junk.decompose() for text_junk in
          self.soup.find_all("p", class_=self.tag_type_dict['junk1'])]
+
+        for tag in self.soup.find_all("ol"):
+            if tag.find_next_sibling() and tag.find_next_sibling().name == "ol":
+                print(tag)
 
         [tag.decompose() for tag in self.soup.find_all("p", string=re.compile(r'——————————'))]
 
