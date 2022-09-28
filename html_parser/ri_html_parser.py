@@ -1251,7 +1251,7 @@ class RIParseHtml(ParseHtml):
                         if self.number != 1:
                             ol_tag_for_number.append(li_tag)
                         else:
-                            ol_tag_for_number.append(li_tag)
+                            li_tag.wrap(ol_tag_for_number)
                         self.number += 1
                     else:
                         tag_id = tag.find_previous({'h5', 'h4', 'h3'}).get('id')
@@ -1297,7 +1297,7 @@ class RIParseHtml(ParseHtml):
                     ol_count = 1
                     if re.search('^Part [IVXCL]+', tag.text.strip()):
                         tag['class'] = "h3_part"
-                elif re.search(r'^[IVXCL]+. Purposes\.', tag.text.strip()):
+                elif re.search(r'^[IVXCL]+\. Purposes\.', tag.text.strip()):
                     self.alphabet = 'a'
                     ol_count += 1
                 else:
