@@ -97,11 +97,13 @@ def add_cite_to_file(soup_obj, state_key, release_number, input_file_name, id_di
     cite_p_tags = []
     for tag in soup.findAll(
             lambda tag: getattr(cite_parser_obj, "cite_tag_pattern").search(tag.get_text()) and tag.name in ['p', 'li'] and tag not in cite_p_tags and not tag.a and tag.parent.name != 'ul'):
+        if re.search('The following exceptions shall apply to this article:', tag.text):
+            print()
         cite_p_tags.append(tag)
         text = str(tag)
         for match in set(x[0] for x in getattr(cite_parser_obj, "cite_pattern").findall(tag.text.strip())):
             if state_key == "RI" or state_key == "MS":
-                inside_text = re.sub(r'^<p.*>|</p>$|^<li id="[a-z.A-Z\d-]+">|</li>$', '', text, re.DOTALL)
+                inside_text = re.sub(r'^<p.*>|</p>$|^<li id="[–a-z.A-Z\d-]+">|</li>$', '', text, re.DOTALL)
             else:
                 inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<b>|</b>|<p>|<p.+>', '', text, re.DOTALL)
 
@@ -167,7 +169,7 @@ def add_cite_to_file(soup_obj, state_key, release_number, input_file_name, id_di
         for match in set(
                 x[0] for x in getattr(cite_parser_obj, "code_pattern").findall(tag.text.strip())):
             if state_key == "RI" or state_key == "MS":
-                inside_text = re.sub(r'^<p.*>|</p>$|^<li id="[a-z.A-Z\d-]+">|</li>$', '', text, re.DOTALL)
+                inside_text = re.sub(r'^<p.*>|</p>$|^<li id="[–a-z.A-Z\d-]+">|</li>$', '', text, re.DOTALL)
             else:
                 inside_text = re.sub(r'<p\sclass="\w\d+">|</p>|<b>|</b>|<p>', '', text, re.DOTALL)
             if getattr(cite_parser_obj, "ri_cite_pattern") and getattr(cite_parser_obj, "cons_cite_pattern"):

@@ -233,7 +233,6 @@ class CustomisedRegexKY(RegexPatterns):
                                   r"(Ky.\s*(L. Rptr.\s*)*\d+)|"
                                   r"(OAG \d+-\d+))")
 
-
 class CustomisedRegexRI(RegexPatterns):
     """ Customised regex patterns for RI code"""
 
@@ -279,14 +278,17 @@ class CustomisedRegexRI(RegexPatterns):
 
 
 class CustomisedRegexMS(RegexPatterns):
-    section_pattern = re.compile(
-        r'§§? (?P<id>\d+-\d+-\d+)')
+    section_pattern = re.compile(r'^§*\s*(?P<id>\d+[-–]\d+[A-Z]?[-–]\d+)')
     ul_pattern = re.compile(r'^Chapter (?P<id>\d+)')
+    amend_pattern_con = re.compile(r'^Amendment (?P<id>[IVXCL]+)')
     section_pattern_1 = None
     h2_article_pattern = re.compile(r'^Article (?P<id>\d+)')
     h2_part_pattern = re.compile(r'^Part (?P<id>\d+)')
     h2_subpart_pattern = re.compile(r'^Subpart (?P<id>\d+)')
     h2_subarticle_pattern = re.compile(r'^Subarticle (?P<id>[A-Z])')
+    h1_pattern_con = re.compile(r'^The Constitution of the State of Mississippi|^THE CONSTITUTION OF THE\s*UNITED STATES OF AMERICA')
+    h2_article_pattern_con = re.compile(r'^Article (?P<id>\d+|[IVXCL]+)')
+    section_pattern_con = re.compile(r'^§ (?P<id>\d+[A-Z]?)\.')
     cite_tag_pattern = re.compile(r'\d+-\d+-\d+(( ?\([a-z0-9A-Z]+\) ?)+)?|'
                                   r'((\d+ Miss\. (L\.J\. |(App\. )?LEXIS )?\d+)|'
                                   r'(Miss\. Code Ann\.)|'

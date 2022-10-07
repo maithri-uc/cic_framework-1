@@ -1670,7 +1670,19 @@ class ParseHtml:
                                     self.h3_count = 1
 
                             h3_id_list.append(header_tag_id)
+                #added
+                if re.search(r'^Amendment (\d+|[IVX]+)', header_tag.text.strip(), re.I):
+                    header_tag.name = "h3"
+                    tag_num = re.search(r'^(?P<amd_txt>Amendment (?P<id>\d+|[IVX]+))', header_tag.text.strip(), re.I)
 
+                    if re.search(f'{tag_num.group("amd_txt")}', self.soup.find("ul").text.strip()):
+                        header_tag.name = "h2"
+                        header_tag["id"] = f"{header_tag.find_previous('h1').get('id')}am{tag_num.group('id').zfill(2)}"
+                    else:
+                        header_tag["id"] = f"{header_tag.find_previous('h2').get('id')}-{tag_num.group('id').zfill(2)}"
+
+                    header_tag["class"] = "gen"
+                    self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
             elif header_tag.get("class") == [self.tag_type_dict["head4"]]:
                 self.replace_h4_tag_titles(header_tag, h4_count)
                 self.ul_tag = self.soup.new_tag("ul", **{"class": "leaders"})
